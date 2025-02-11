@@ -40,7 +40,7 @@ Total Memory (MB):     : {{or .MemoryUsage.Total "N/A"}}
 Used Memory (MB):      : {{or .MemoryUsage.Used "N/A"}}
 Free Memory (MB):      : {{or .MemoryUsage.Free "N/A"}}
 Bandwidth (MB/s)       : {{or .PCI.Bandwidth "N/A"}}
-Power (W)              : {{or .Power "N/A"}}
+PowerLimit (W)         : {{or .PowerLimit "N/A"}}
 ---------------------------------------------------------------------
 `
 )

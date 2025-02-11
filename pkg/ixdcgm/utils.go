@@ -75,3 +75,15 @@ func freeCString(c *C.char) {
 func cChar2String(c *C.char) string {
 	return C.GoString(c)
 }
+
+func removeBytesSpaces(originalBytes []byte) string {
+	lastNonZeroIndex := len(originalBytes) - 1
+	for ; lastNonZeroIndex >= 0; lastNonZeroIndex-- {
+		if originalBytes[lastNonZeroIndex] != 0 {
+			break
+		}
+	}
+	cleanedBytes := originalBytes[:lastNonZeroIndex+1]
+
+	return string(cleanedBytes)
+}

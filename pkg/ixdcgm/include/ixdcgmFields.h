@@ -491,7 +491,9 @@ extern "C"
     ixdcgm_field_meta_p __attribute((visibility("default"))) ixdcgmFieldGetById(unsigned short fieldId);
 
     bool ixdcgmIsFieldSupported(unsigned short fieldId);
-    const char __attribute((visibility("default"))) *ixdcgmFieldsGetEntityGroupString(ixdcgm_field_entity_group_t entityGroupId);
+    bool ixdcgmIsNvlinkField(unsigned short fieldId);
+    const char __attribute((visibility("default"))) *
+        ixdcgmFieldsGetEntityGroupString(ixdcgm_field_entity_group_t entityGroupId);
 
 #ifdef __cplusplus
 }

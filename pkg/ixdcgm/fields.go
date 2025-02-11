@@ -24,18 +24,23 @@ package ixdcgm
 import "C"
 import (
 	"fmt"
+	"os"
 	"unsafe"
 )
 
 const (
-	defaultUpdateFreq     = 30000000 // usec
-	defaultMaxKeepAge     = 0        // sec
-	defaultMaxKeepSamples = 1        // Keep one sample by default since we only ask for latest
+	defaultUpdateFreq     = 1000000 // usec
+	defaultMaxKeepAge     = 0       // sec
+	defaultMaxKeepSamples = 1       // Keep one sample by default since we only ask for latest
+
+	DCGM_INT32_BLANK = int32(2147483632)          // 0x7ffffff0
+	DCGM_INT64_BLANK = int64(9223372036854775792) // 0x7ffffffffffffff0
+	DCGM_FP64_BLANK  = float64(140737488355328.0)
 )
 
-type FieldHandle struct{ handle C.dcgmFieldGrp_t }
+type FieldGrpHandle struct{ handle C.dcgmFieldGrp_t }
 
-func FieldGroupCreate(groupName string, fields []Short) (fieldsId FieldHandle, err error) {
+func FieldGroupCreate(groupName string, fields []Short) (fgId FieldGrpHandle, err error) {
 	var fieldsGroup C.dcgmFieldGrp_t
 	cfields := *(*[]C.ushort)(unsafe.Pointer(&fields))
 
@@ -44,16 +49,16 @@ func FieldGroupCreate(groupName string, fields []Short) (fieldsId FieldHandle, e
 
 	res := C.dcgmFieldGroupCreate(handle.handle, C.int(len(fields)), &cfields[0], gn, &fieldsGroup)
 	if err = errorString(res); err != nil {
-		return fieldsId, fmt.Errorf("error creating DCGM fields group: %s", err)
+		return fgId, fmt.Errorf("error creating DCGM fields group: %s", err)
 	}
 
-	fieldsId = FieldHandle{
+	fgId = FieldGrpHandle{
 		handle: fieldsGroup,
 	}
 	return
 }
 
-func FieldGroupDestroy(fieldGroup FieldHandle) (err error) {
+func FieldGroupDestroy(fieldGroup FieldGrpHandle) (err error) {
 	res := C.dcgmFieldGroupDestroy(handle.handle, fieldGroup.handle)
 	if err = errorString(res); err != nil {
 		return fmt.Errorf("error destroying DCGM fields group: %s", err)
@@ -61,18 +66,19 @@ func FieldGroupDestroy(fieldGroup FieldHandle) (err error) {
 	return nil
 }
 
-func WatchFields(gpuId uint, fieldsGroup FieldHandle, groupName string) (GroupHandle, error) {
-	groups, err := CreateGroup(groupName)
+func WatchFields(gpuIds []uint, fieldGrp FieldGrpHandle, groupName string) (GroupHandle, error) {
+	group, err := CreateGroup(groupName)
 	if err != nil {
 		return GroupHandle{}, err
 	}
-
-	err = AddDevice(groups, gpuId)
-	if err != nil {
-		return GroupHandle{}, err
+	for _, gpuId := range gpuIds {
+		err = AddDevice(group, gpuId)
+		if err != nil {
+			return GroupHandle{}, err
+		}
 	}
 
-	res := C.dcgmWatchFields(handle.handle, groups.handle, fieldsGroup.handle,
+	res := C.dcgmWatchFields(handle.handle, group.handle, fieldGrp.handle,
 		C.longlong(defaultUpdateFreq),
 		C.double(defaultMaxKeepAge),
 		C.int(defaultMaxKeepSamples))
@@ -85,7 +91,7 @@ func WatchFields(gpuId uint, fieldsGroup FieldHandle, groupName string) (GroupHa
 	if err = errorString(res); err != nil {
 		return GroupHandle{}, fmt.Errorf("error updating DCGM fields: %s", err)
 	}
-	return groups, nil
+	return group, nil
 }
 
 func GetLatestValuesForFields(gpu uint, fields []Short) ([]FieldValue_v1, error) {
@@ -113,10 +119,35 @@ func toFieldValue(values []C.dcgmFieldValue_v1) (fields []FieldValue_v1) {
 	return
 }
 
-// func FieldsInit() int {
-// 	return int(C.ixdcgmFieldsInit())
-// }
+func GetFieldValueStr(fv FieldValue_v1, typ string) string {
+	st := fv.Status
+	if st != C.DCGM_ST_OK {
+		return "N/A"
+	}
 
-// func FieldsTerm() int {
-// 	return int(C.ixdcgmFieldsTerm())
-// }
+	switch typ {
+	case "int64":
+		value := *(*int64)(unsafe.Pointer(&fv.Value[0]))
+		if value >= DCGM_INT64_BLANK {
+			return "N/A" // indicate the field is not supported
+		}
+		return fmt.Sprintf("%d", value)
+
+	case "float64":
+		value := *(*float64)(unsafe.Pointer(&fv.Value[0]))
+		if value >= DCGM_FP64_BLANK {
+			return "N/A" // indicate the field is not supported
+		}
+		// sync the precision with the display of ixdcgmi
+		return fmt.Sprintf("%.3f", value)
+
+	case "string":
+		// remove redundant spaces of string converted from C bytes
+		return removeBytesSpaces(fv.Value[:])
+
+	default:
+		fmt.Printf("Not Supported Type: %s\n", typ)
+		os.Exit(1)
+		return "N/A"
+	}
+}

@@ -23,14 +23,13 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"gitee.com/deep-spark/go-ixdcgm/pkg/ixdcgm"
 )
 
 func main() {
 	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	cleanup, err := ixdcgm.Init(ixdcgm.Embedded)
 	if err != nil {
@@ -38,34 +37,41 @@ func main() {
 	}
 	defer cleanup()
 
-	gpus, err := ixdcgm.GetSupportedDevices()
+	gpuIds, err := ixdcgm.GetSupportedDevices()
 	if err != nil {
 		log.Panicln(err)
 	}
 
-	ticker := time.NewTicker(time.Second * 5)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			for _, gpu := range gpus {
-				st, err := ixdcgm.GetDeviceStatus(gpu)
-				if err != nil {
-					log.Panicln(err)
-				}
-				fmt.Printf("st.Power Usage %f\n", st.Power)
-				fmt.Printf("st.Temperature %d\n", st.Temperature)
-				fmt.Printf("st.Utilization.GPU %d\n", st.Utilization.GPU)
-				fmt.Printf("st.Utilization.Memory %d\n", st.Utilization.Memory)
-				fmt.Printf("st.Clocks.Cores %d\n", st.Clocks.Cores)
-				fmt.Printf("st.Clocks.Memory %d\n", st.Clocks.Memory)
-				fmt.Printf("st.FanSpeed %d\n", st.FanSpeed)
-				fmt.Printf("st.st.PCI.Tx %d, st.PCI.Rx %d, st.PCI.Replays %d\n", st.PCI.Tx, st.PCI.Rx, st.PCI.Replays)
-			}
-
-		case <-sigs:
-			return
+	for _, gpuId := range gpuIds {
+		st, err := ixdcgm.GetDeviceStatus(gpuId)
+		if err != nil {
+			log.Panicln(err)
 		}
+		pst, err := ixdcgm.GetDeviceProfStatus(gpuId)
+		if err != nil {
+			log.Panicln(err)
+		}
+
+		fmt.Printf("GPUId                  : %d\n", st.Id)
+		fmt.Printf("Power Usage (W)        : %s\n", st.Power)
+		fmt.Printf("Temperature (°C)       : %s\n", st.Temperature)
+		fmt.Printf("FanSpeed (%%)           : %s\n", st.FanSpeed)
+		fmt.Printf("Utilization.GPU (%%)    : %d\n", st.Utilization.Gpu)
+		fmt.Printf("Utilization.Mem (%%)    : %d\n", st.Utilization.Mem)
+		fmt.Printf("Clocks.Cores (MHz)     : %d\n", st.Clocks.Sm)
+		fmt.Printf("Clocks.Mem (MHz)       : %d\n", st.Clocks.Mem)
+		fmt.Printf("EccSdbVolDev           : %s\n", st.EccSbeVolDev)
+		fmt.Printf("EccDdbVolDev           : %s\n", st.EccDbeVolDev)
+		fmt.Printf("PCI.Tx (MB/s)          : %d\n", st.PCI.Tx)
+		fmt.Printf("PCI.Rx (MB/s)          : %d\n", st.PCI.Rx)
+		fmt.Printf("PCI.ReplayCounter      : %d\n", st.PCI.ReplayCounter)
+		fmt.Printf("Total Memory (MB)      : %d\n", st.MemUsage.Total)
+		fmt.Printf("Used Memory (MB)       : %d\n", st.MemUsage.Used)
+		fmt.Printf("Free Memory (MB)       : %d\n", st.MemUsage.Free)
+		fmt.Printf("SmActive               : %s\n", pst.SmActive)
+		fmt.Printf("SmOccupancy            : %s\n", pst.SmOccupancy)
+		fmt.Printf("DramActive             : %s\n", pst.DramActive)
+		fmt.Println("-------------------------------------------")
 	}
+
 }

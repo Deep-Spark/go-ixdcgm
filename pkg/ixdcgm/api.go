@@ -30,6 +30,8 @@ import (
 	"fmt"
 	"sync"
 	"unsafe"
+
+	_ "gitee.com/deep-spark/go-ixdcgm/pkg/ixdcgm/include"
 )
 
 var (
@@ -123,6 +125,16 @@ func GetSupportedDevices() ([]uint, error) {
 // GetDeviceStatus monitors GPU status including its power, memory and GPU utilization
 func GetDeviceStatus(gpuId uint) (DeviceStatus, error) {
 	return getDeviceStatus(gpuId)
+}
+
+// GetDeviceProfStatus monitors GPM info including SM_ACTIVE, SM_OCCUPANCY and DRAM_ACTIVE
+func GetDeviceProfStatus(gpuId uint) (DeviceProfStatus, error) {
+	return getDeviceProfStatus(gpuId)
+}
+
+// GetDeviceRunningProcess get the running process infos for the given gpu id
+func GetDeviceRunningProcesses(gpuId uint) ([]DeviceProcessInfo, error) {
+	return getDeviceRunningProcesses(gpuId)
 }
 
 func GetDeviceOnSameBoard(gpuId1, gpuId2 uint) (bool, error) {
