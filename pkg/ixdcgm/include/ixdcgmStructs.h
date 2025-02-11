@@ -21,7 +21,16 @@
 #define IXDCGM_VGPU_NAME_BUFFER_SIZE 64
 #define IXDCGM_DEVICE_UUID_BUFFER_SIZE 80
 
+#define IXDCGM_CONFIG_COMPUTEMODE_DEFAULT 0
+#define IXDCGM_CONFIG_COMPUTEMODE_PROHIBITED 1
+#define IXDCGM_CONFIG_COMPUTEMODE_EXCLUSIVE_PROCESS 2
+
 #define IXDCGM_GROUP_MAX_ENTITIES 64
+
+/*IXDCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT field not supported,
+  set IXDCGM_LINK_ERROR_COUNT and IXDCGM_HEALTH_WATCH_LINK_ERROR_NUM_FIELDS to 3. */
+#define IXDCGM_LINK_ERROR_COUNT 3
+#define IXDCGM_HEALTH_WATCH_LINK_ERROR_NUM_FIELDS 3
 
 #define IXDCGM_INT32_BLANK 0x7ffffff0
 #define IXDCGM_INT64_BLANK 0x7ffffffffffffff0ll
@@ -190,6 +199,29 @@ typedef enum
 
 typedef struct
 {
+    ixdcgmModuleId_t     id;      //!< ID of this module
+    ixdcgmModuleStatus_t status;  //!< Status of this module
+} ixdcgmModuleGetStatusesModule_t;
+
+/* This is larger than ixdcgmModuleIdCount so we can add modules without versioning this request */
+#define IXDCGM_MODULE_STATUSES_CAPACITY 16
+
+typedef struct
+{
+    unsigned int                    version;  //!< Version of this request. Should be ixdcgmModuleGetStatuses_version1
+    unsigned int                    numStatuses;  //!< Number of entries in statuses[] that are populated
+    ixdcgmModuleGetStatusesModule_t statuses[IXDCGM_MODULE_STATUSES_CAPACITY];  //!< Per-module status information
+} ixdcgmModuleGetStatuses_v1;
+
+/**
+ * Version 1 of dcgmModuleGetStatuses
+ */
+#define ixdcgmModuleGetStatuses_version1 MAKE_IXDCGM_VERSION(ixdcgmModuleGetStatuses_v1, 1)
+#define ixdcgmModuleGetStatuses_version ixdcgmModuleGetStatuses_version1
+typedef ixdcgmModuleGetStatuses_v1 ixdcgmModuleGetStatuses_t;
+
+typedef struct
+{
     unsigned int          version;        /*!< Version number. Use ixdcgmStartEmbeddedV2Params_version2 */
     ixdcgmOperationMode_t opMode;         /*!< IN: Collect data automatically or manually when asked by the user. */
     ixdcgmHandle_t        ixdcgmHandle;   /*!< OUT: DCGM Handle to use for API calls */
@@ -205,10 +237,11 @@ typedef unsigned int ixdcgm_connection_id_t;
 #define IXDCGM_CONNECTION_ID_NONE ((ixdcgm_connection_id_t)0)
 
 #define IXDCGM_HOSTENGINE_DEFAULT_PORT 5777
-#define IXDCGM_HOSTENGINE_LOCAL_ADDR "0.0.0.0"  // Default set to listen to ALL IP addrs
+#define IXDCGM_HOSTENGINE_LOCAL_ADDR "0.0.0.0"                 // Default set to listen to ALL IP addrs
+#define IXDCGM_HOSTENGINE_DEFAULT_SOCKET "/tmp/ix-hostengine"  // Default set to listen to ALL IP addrs
 
 #define IXDCGM_EMBEDDED_HANDLE 0x7fffffff
-#define IXDCGM_MAX_NUM_DEVICES 16
+#define IXDCGM_MAX_NUM_DEVICES 32
 #define IXDCGM_MAX_NUM_GROUPS 64
 
 #define IXDCGM_CMI_F_WATCHED 0x00000001 /* Is this field being watched? */
@@ -412,7 +445,7 @@ typedef struct
 
     unsigned short fieldId;    //!< One of IXDCGM_FI_?
     unsigned short fieldType;  //!< One of IXDCGM_FT_?
-    int            status;     //!< Status for the querying the field. IXDCGM_ST_OK or one of IXDCGM_ST_?
+    int            status;     //!< Status for the querying the field. IXDCGM_RET_OK or one of IXDCGM_RET_?
     int64_t        ts;         //!< Timestamp in usec since 1970
     union {
         int64_t i64;                           //!< Int64 value
@@ -431,7 +464,7 @@ typedef struct
     ixdcgm_field_eid_t          entityId;       //!< Entity this field value belongs to
     unsigned short              fieldId;        //!< One of IXDCGM_FI_?
     unsigned short              fieldType;      //!< One of IXDCGM_FT_?
-    int                         status;  //!< Status for the querying the field. IXDCGM_ST_OK or one of IXDCGM_ST_?
+    int                         status;  //!< Status for the querying the field. IXDCGM_RET_OK or one of IXDCGM_RET_?
     unsigned int                unused;  //!< Unused for now to align ts to an 8-byte boundary.
     int64_t                     ts;      //!< Timestamp in usec since 1970
     union {
@@ -442,6 +475,27 @@ typedef struct
     } value;                                   //!< Value
 } ixdcgmFieldValue_v2;
 #define ixdcgmFieldValue_version2 MAKE_IXDCGM_VERSION(ixdcgmFieldValue_v2, 2)
+
+/**
+ * User callback function for processing one or more field updates. This callback will
+ * be invoked one or more times per field until all of the expected field values have been
+ * enumerated. It is up to the callee to detect when the field id changes
+ *
+ * @param gpuId                IN: GPU ID of the GPU this field value set belongs to
+ * @param values               IN: Field values. These values must be copied as they will be destroyed as soon as this
+ *                                 call returns.
+ * @param numValues            IN: Number of entries that are valid in values[]
+ * @param userData             IN: User data pointer passed to the update function that generated this callback
+ *
+ * @returns
+ *          0 if OK
+ *         <0 if enumeration should stop. This allows to callee to abort field value enumeration.
+ *
+ */
+typedef int (*ixdcgmFieldValueEnumeration_f)(unsigned int         gpuId,
+                                             ixdcgmFieldValue_v1* values,
+                                             int                  numValues,
+                                             void*                userData);
 
 /* Bitmask values for ixdcgmGetFieldIdSummary - Sync with DcgmcmSummaryType_t */
 #define IXDCGM_SUMMARY_MIN 0x00000001
@@ -598,7 +652,34 @@ typedef enum ixdcgmLinkState_enum
     ixdcgmLinkStateUp           = 3   //!< This Link link is up (active)
 } ixdcgmLinkState_t;
 
-#define IXDCGM_MAX_LINKS_PER_GPU 16
+#define IXDCGM_MAX_LINKS_PER_GPU 18
+#define IXDCGM_MAX_NUM_SWITCHES 12
+#define IXDCGM_MAX_LINKS_PER_SWITCH 64
+
+typedef struct
+{
+    ixdcgm_field_eid_t entityId;                             //!< Entity ID of the GPU (gpuId)
+    ixdcgmLinkState_t  linkState[IXDCGM_MAX_LINKS_PER_GPU];  //!< Per-GPU link states
+} ixdcgmLinkGpuLinkStatus_v3;
+
+typedef struct
+{
+    ixdcgm_field_eid_t entityId;                                //!< Entity ID of the NvSwitch (physicalId)
+    ixdcgmLinkState_t  linkState[IXDCGM_MAX_LINKS_PER_SWITCH];  //!< Per-NvSwitch link states
+} ixdcgmSwitchLinkStatus_t;
+
+typedef struct
+{
+    unsigned int               version;  //!< Version of this request. Should be dcgmNvLinkStatus_version1
+    unsigned int               numGpus;  //!< Number of entries in gpus[] that are populated
+    ixdcgmLinkGpuLinkStatus_v3 gpus[IXDCGM_MAX_NUM_DEVICES];  //!< Per-GPU NvLink link statuses
+    unsigned int               numNvSwitches;                 //!< Number of entries in nvSwitches[] that are populated
+    ixdcgmSwitchLinkStatus_t   nvSwitches[IXDCGM_MAX_NUM_SWITCHES];  //!< Per-NvSwitch link statuses
+} ixdcgmLinkStatus_v3;
+
+typedef ixdcgmLinkStatus_v3 ixdcgmLinkStatus_t;
+
+#define ixdcgmLinkStatus_version3 MAKE_IXDCGM_VERSION(ixdcgmLinkStatus_v3, 3)
 
 typedef struct
 {
@@ -708,6 +789,15 @@ typedef enum ixdcgmGpuLevel_enum
 #define IXDCGM_TOPOLOGY_PATH_LINK(x) (ixdcgmGpuTopologyLevel_t)((unsigned int)(x) & 0xFFFFFF00)
 
 #define IXDCGM_AFFINITY_BITMASK_ARRAY_SIZE 8
+
+/** No hints specified */
+#define IXDCGM_TOPO_HINT_F_NONE 0x00000000
+
+/** Ignore the health of the GPUs when picking GPUs for job
+ * execution. By default, only healthy GPUs are considered.
+ */
+#define IXDCGM_TOPO_HINT_F_IGNOREHEALTH 0x00000001
+
 /**
  * Device topology information
  */
@@ -729,7 +819,7 @@ typedef struct
                                          //!< 0x210 = IXDCGM_TOPOLOGY_CPU | IXDCGM_TOPOLOGY_LINK2
                                          //!< Use the macros IXDCGM_TOPOLOGY_PATH_LINK and
                                          //!< IXDCGM_TOPOLOGY_PATH_PCI to mask the NvLink and PCI paths, respectively.
-        unsigned int localNvLinkIds;     //!< bits representing the local links connected to gpuId
+        unsigned int localLinkIds;       //!< bits representing the local links connected to gpuId
                                          //!< e.g. if this field == 3, links 0 and 1 are connected,
                                          //!< field is only valid if LINKS actually exist between GPUs
     } gpuPaths[IXDCGM_MAX_NUM_DEVICES - 1];
@@ -847,6 +937,16 @@ typedef ixdcgmAllFieldGroup_v1 ixdcgmAllFieldGroup_t;
  */
 #define ixdcgmAllFieldGroup_version ixdcgmAllFieldGroup_version1
 
+/**
+ * Structure to represent error attributes
+ */
+typedef struct
+{
+    unsigned int gpuId;    //!< Represents GPU ID
+    short        fieldId;  //!< One of DCGM_FI_?
+    int          status;   //!< One of DCGM_ST_?
+} ixdcgmErrorInfo_t;
+
 typedef struct
 {
     int              targetLogger;
@@ -856,5 +956,128 @@ typedef struct
 #define ixdcgmSettingsSetLoggingSeverity_version1 MAKE_IXDCGM_VERSION(ixdcgmSettingsSetLoggingSeverity_v1, 1)
 #define ixdcgmSettingsSetLoggingSeverity_version ixdcgmSettingsSetLoggingSeverity_version1
 typedef ixdcgmSettingsSetLoggingSeverity_v1 ixdcgmSettingsSetLoggingSeverity_t;
+
+/**
+ * Systems structure used to enable or disable health watch systems
+ */
+typedef enum ixdcgmHealthSystems_enum
+{
+    IXDCGM_HEALTH_WATCH_PCIE              = 0x1,    //!< PCIe system watches (must have 1m of data before query)
+    IXDCGM_HEALTH_WATCH_NVLINK            = 0x2,    //!< NVLINK system watches
+    IXDCGM_HEALTH_WATCH_PMU               = 0x4,    //!< Power management unit watches
+    IXDCGM_HEALTH_WATCH_MCU               = 0x8,    //!< Micro-controller unit watches
+    IXDCGM_HEALTH_WATCH_MEM               = 0x10,   //!< Memory watches
+    IXDCGM_HEALTH_WATCH_SM                = 0x20,   //!< Streaming multiprocessor watches
+    IXDCGM_HEALTH_WATCH_INFOROM           = 0x40,   //!< Inforom watches
+    IXDCGM_HEALTH_WATCH_THERMAL           = 0x80,   //!< Temperature watches (must have 1m of data before query)
+    IXDCGM_HEALTH_WATCH_POWER             = 0x100,  //!< Power watches (must have 1m of data before query)
+    IXDCGM_HEALTH_WATCH_DRIVER            = 0x200,  //!< Driver-related watches
+    IXDCGM_HEALTH_WATCH_NVSWITCH_NONFATAL = 0x400,  //!< Non-fatal errors in NvSwitch
+    IXDCGM_HEALTH_WATCH_NVSWITCH_FATAL    = 0x800,  //!< Fatal errors in NvSwitch
+
+    // ...
+    IXDCGM_HEALTH_WATCH_ALL = 0xFFFFFFFF  //!< All watches enabled
+} ixdcgmHealthSystems_t;
+
+#define IXDCGM_HEALTH_WATCH_COUNT_V1 10 /*!< For iterating through the dcgmHealthSystems_v1 enum */
+#define IXDCGM_HEALTH_WATCH_COUNT_V2 12 /*!< For iterating through the dcgmHealthSystems_v2 enum */
+
+/**
+ * Health Watch test results
+ */
+typedef enum ixdcgmHealthWatchResult_enum
+{
+    IXDCGM_HEALTH_RESULT_PASS = 0,   //!< All results within this system are reporting normal
+    IXDCGM_HEALTH_RESULT_WARN = 10,  //!< A warning has been issued, refer to the response for more information
+    IXDCGM_HEALTH_RESULT_FAIL = 20,  //!< A failure has been issued, refer to the response for more information
+} ixdcgmHealthWatchResults_t;
+
+typedef struct
+{
+    char         msg[1024];
+    unsigned int code;
+} ixdcgmDiagErrorDetail_t;
+
+#define IXDCGM_ERR_MSG_LENGTH 512
+#define IXDCGM_HEALTH_WATCH_MAX_INCIDENTS IXDCGM_GROUP_MAX_ENTITIES
+
+typedef struct
+{
+    ixdcgmHealthSystems_t      system;      //!< system to which this information belongs
+    ixdcgmHealthWatchResults_t health;      //!< health diagnosis of this incident
+    ixdcgmDiagErrorDetail_t    error;       //!< Information about the error(s) and their error codes
+    ixdcgmGroupEntityPair_t    entityInfo;  //!< identify which entity has this error
+} ixdcgmIncidentInfo_t;
+
+/**
+ * Structure used to set health watches via the dcgmHealthSet_v2 API
+ */
+typedef struct
+{
+    unsigned int   version;        /*!< Version of this struct. Should be ixdcgmHealthSet_version2 */
+    ixdcgmGpuGrp_t groupId;        /*!< Group ID representing collection of one or more entities. Look
+                                      at \ref dcgmGroupCreate for details on creating the group.
+                                      Alternatively, pass in the group id as \a IXDCGM_GROUP_ALL_GPUS
+                                      to perform operation on all the GPUs or \a IXDCGM_GROUP_ALL_NVSWITCHES
+                                      to perform operation on all the NvSwitches. */
+    ixdcgmHealthSystems_t systems; /*!< An enum representing systems that should be enabled for health
+                                      checks logically OR'd together. Refer to \ref ixdcgmHealthSystems_t
+                                      for details. */
+    long long updateInterval;      /*!< How often to query the underlying health information from the
+                                        driver in usec. This should be the same as how often you call
+                                        ixdcgmHealthCheck */
+    double maxKeepAge;             /*!< How long to keep data cached for this field in seconds. This should
+                                        be at least your maximum time between calling ixdcgmHealthCheck */
+} ixdcgmHealthSetParams_v2;
+
+/**
+ * Version 2 for \ref ixdcgmHealthSet_v2
+ */
+#define ixdcgmHealthSetParams_version2 MAKE_IXDCGM_VERSION(ixdcgmHealthSetParams_v2, 2)
+
+typedef struct
+{
+    unsigned int               version;        //!< The version number of this struct
+    ixdcgmHealthWatchResults_t overallHealth;  //!< The overall health of this entire host
+    unsigned int               incidentCount;  //!< The number of health incidents reported in this struct
+    ixdcgmIncidentInfo_t       incidents[IXDCGM_HEALTH_WATCH_MAX_INCIDENTS];  //!< Report of the errors detected
+} ixdcgmHealthResponse_v4;
+
+#define ixdcgmHealthResponse_version4 MAKE_IXDCGM_VERSION(ixdcgmHealthResponse_v4, 4)
+#define ixdcgmHealthResponse_version ixdcgmHealthResponse_version4
+typedef ixdcgmHealthResponse_v4 ixdcgmHealthResponse_t;
+
+#define IXDCGM_PROF_MAX_NUM_GROUPS_V2 10
+
+#define IXDCGM_PROF_MAX_FIELD_IDS_PER_GROUP_V2 64
+
+typedef struct
+{
+    unsigned short majorId;      //!< Major ID of this metric group. Metric groups with the same majorId cannot be
+                                 //!< watched concurrently with other metric groups with the same majorId
+    unsigned short minorId;      //!< Minor ID of this metric group. This distinguishes metric groups within the same
+                                 //!< major metric group from each other
+    unsigned int   numFieldIds;  //!< Number of field IDs that are populated in fieldIds[]
+    unsigned short fieldIds[IXDCGM_PROF_MAX_FIELD_IDS_PER_GROUP_V2];  //!< DCGM Field IDs that are part of this
+                                                                      //!< profiling group. See DCGM_FI_PROF_*
+                                                                      //!< definitions in dcgm_fields.h for details.
+} ixdcgmProfMetricGroupInfo_v2;
+
+typedef struct
+{
+    unsigned int version;  //!< Version of this request. Should be dcgmProfGetMetricGroups_version
+    unsigned int unused;   //!< Not used for now. Set to 0
+    unsigned int gpuId;    //!< GPU ID we should get the metric groups for.
+
+    unsigned int                 numMetricGroups;  //!< Number of entries in metricGroups[] that are populated
+    ixdcgmProfMetricGroupInfo_v2 metricGroups[IXDCGM_PROF_MAX_NUM_GROUPS_V2];  //!< Info for each metric group
+} ixdcgmProfGetMetricGroups_v3;
+
+/**
+ * Version 3 of dcgmProfGetMetricGroups_t. See dcgm_structs_24.h for v2
+ */
+#define ixdcgmProfGetMetricGroups_version3 MAKE_IXDCGM_VERSION(ixdcgmProfGetMetricGroups_v3, 3)
+#define ixdcgmProfGetMetricGroups_version ixdcgmProfGetMetricGroups_version3
+typedef ixdcgmProfGetMetricGroups_v3 ixdcgmProfGetMetricGroups_t;
 
 #endif  // end of __IXDCGM_STRUCTS_H__

@@ -2,7 +2,7 @@
 
 ## Introduction
 
-ixDCGM is a tool provided for monitoring and managing **IluvatarCorex GPUs**, offering a rich set of APIs to retrieve information about GPU status, performance, power consumption, and more. Go-IXDCGM is a wrapper library for IXDCGM written in Go language, providing a simple set of functions that facilitate the easy invocation of IXDCGM's APIs.
+IXDCGM is a tool provided for monitoring and managing IX GPUs, offering a rich set of APIs to retrieve information about GPU status, performance, power consumption, and more. Go-IXDCGM is a wrapper library for IXDCGM written in Go language, providing a simple set of functions that facilitate the easy invocation of IXDCGM's APIs.
 
 ## Install
 
@@ -26,7 +26,7 @@ import (
 	"log"
 	"os"
 
-	"iluvatar.com/go-dcgm/pkg/ixdcgm"
+	"gitee.com/deep-spark/go-ixdcgm/pkg/ixdcgm"
 )
 
 const (

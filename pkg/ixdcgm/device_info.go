@@ -54,7 +54,7 @@ type DeviceInfo struct {
 	GPUId           uint
 	IxDCGMSupported string
 	Uuid            string
-	Power           uint
+	PowerLimit      uint
 	PCI             PciInfo
 	MemoryUsage     MemoryUsageInfo
 	Identifiers     DeviceIdentifier
@@ -92,7 +92,7 @@ func getPciBandwidth(gpuId uint) (int64, error) {
 	}
 
 	groupName := fmt.Sprintf("pciBandwidth%d", gpuId)
-	groupId, err := WatchFields(gpuId, fieldsId, groupName)
+	groupId, err := WatchFields([]uint{gpuId}, fieldsId, groupName)
 	if err != nil {
 		FieldGroupDestroy(fieldsId)
 		return 0, err
@@ -158,7 +158,7 @@ func getDeviceInfo(gpuId uint) (DeviceInfo, error) {
 	}
 
 	uuid := cChar2String(&dcgmAttr.identifiers.uuid[0])
-	power := uint(dcgmAttr.powerLimits.defaultPowerLimit)
+	powerLimit := uint(dcgmAttr.powerLimits.defaultPowerLimit)
 	busId := cChar2String(&dcgmAttr.identifiers.pciBusId[0])
 
 	pci := PciInfo{
@@ -182,7 +182,7 @@ func getDeviceInfo(gpuId uint) (DeviceInfo, error) {
 		GPUId:           gpuId,
 		IxDCGMSupported: supported,
 		Uuid:            uuid,
-		Power:           power,
+		PowerLimit:      powerLimit,
 		PCI:             pci,
 		MemoryUsage:     memInfo,
 		Identifiers:     id,
@@ -216,24 +216,24 @@ func getCPUAffinity(gpuId uint) (string, error) {
 	)
 
 	affFields := make([]Short, fieldsCount)
-	affFields[affinity0] = C.DCGM_FI_DEV_CPU_AFFINITY_0
-	affFields[affinity1] = C.DCGM_FI_DEV_CPU_AFFINITY_1
-	affFields[affinity2] = C.DCGM_FI_DEV_CPU_AFFINITY_2
-	affFields[affinity3] = C.DCGM_FI_DEV_CPU_AFFINITY_3
+	affFields[affinity0] = DCGM_FI_DEV_CPU_AFFINITY_0
+	affFields[affinity1] = DCGM_FI_DEV_CPU_AFFINITY_1
+	affFields[affinity2] = DCGM_FI_DEV_CPU_AFFINITY_2
+	affFields[affinity3] = DCGM_FI_DEV_CPU_AFFINITY_3
 
-	fieldsName := fmt.Sprintf("cpuAffFields%d", gpuId)
-	fieldId, err := FieldGroupCreate(fieldsName, affFields)
+	fieldGrpName := fmt.Sprintf("cpuAffFields%d", gpuId)
+	fieldGrpHdl, err := FieldGroupCreate(fieldGrpName, affFields)
 	if err != nil {
 		return "N/A", err
 	}
-	defer FieldGroupDestroy(fieldId)
+	defer FieldGroupDestroy(fieldGrpHdl)
 
-	gpoupName := fmt.Sprintf("cpuAff%d", gpuId)
-	groupId, err := WatchFields(gpuId, fieldId, gpoupName)
+	gpuGrpName := fmt.Sprintf("cpuAff%d", gpuId)
+	gpuGrpHdl, err := WatchFields([]uint{gpuId}, fieldGrpHdl, gpuGrpName)
 	if err != nil {
 		return "N/A", err
 	}
-	defer DestroyGroup(groupId)
+	defer DestroyGroup(gpuGrpHdl)
 
 	values, err := GetLatestValuesForFields(gpuId, affFields)
 	if err != nil {

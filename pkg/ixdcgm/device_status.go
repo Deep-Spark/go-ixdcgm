@@ -25,14 +25,15 @@ import "C"
 import (
 	"fmt"
 	"math/rand"
+	"time"
 )
 
 type PerfState uint
 
 const (
-	PerfStateMax     = 0
-	PerfStateMin     = 15
-	PerfStateUnknown = 32
+	PerfStateMax     PerfState = 0
+	PerfStateMin     PerfState = 15
+	PerfStateUnknown PerfState = 32
 )
 
 func (p PerfState) String() string {
@@ -43,105 +44,188 @@ func (p PerfState) String() string {
 }
 
 type UtilizationInfo struct {
-	GPU    int64 // %
-	Memory int64 // %
+	Gpu int64 // %
+	Mem int64 // %
 }
 
 type ClockInfo struct {
-	Cores  int64 // MHz
-	Memory int64 // MHz
+	Sm  int64 // MHz
+	Mem int64 // MHz
 }
 
 type PCIStatusInfo struct {
-	Rx      int64 // MB/s
-	Tx      int64 // MB/s
-	Replays int64
+	Rx            int64 // KB/s
+	Tx            int64 // KB/s
+	ReplayCounter int64 // Counter
+}
+
+type MemoryUsage struct {
+	Total int64 // Total Memory (Frame Buffer) of the GPU in MB
+	Used  int64 // Used Memory (Frame Buffer) in MB
+	Free  int64 // Free Memory (Frame Buffer) in MB
 }
 
 type DeviceStatus struct {
-	Power       float64 // W
-	Temperature int64   // °C
+	Id          uint
+	Power       string // "N/A" or float64 str, W
+	Temperature string // "N/A" or int64 str, °C
+
 	Utilization UtilizationInfo
 	Clocks      ClockInfo
 	PCI         PCIStatusInfo
 	Performance PerfState
-	FanSpeed    int64 // %
+	MemUsage    MemoryUsage
+
+	FanSpeed     string // "N/A" or int64 str, %
+	EccSbeVolDev string // "N/A" or int64 str, 1 for errors occurred, 0 for no errors
+	EccDbeVolDev string // "N/A" or int64 str, 1 for errors occurred, 0 for no errors
+}
+
+type DeviceProfStatus struct {
+	SmActive    string // "N/A" or float64 str, %
+	SmOccupancy string // "N/A" or float64 str, %
+	DramActive  string // "N/A" or float64 str, %
 }
 
 func getDeviceStatus(gpuId uint) (status DeviceStatus, err error) {
 	const (
-		pwr int = iota
-		temp
-		sm
-		mem
-		smClock
-		memClock
-		pcieRxThroughput
-		pcieTxThroughput
-		pcieReplay
-		fanSpeed
+		IdxPower int = iota
+		IdxGpuTemp
+		IdxGpuUtil
+		IdxMemUtil
+		IdxSmClock
+		IdxMemClock
+		IdxPcieRxThroughput
+		IdxPcieTxThroughput
+		IdxPcieReplayCounter
+		IdxFanSpeed
+		IdxEccSbeVolDev
+		IdxEccDbeVolDev
+		IdxMemTotal
+		IdxMemUsed
+		IdxMemFree
 	)
 
-	deviceFields := []Short{
-		C.DCGM_FI_DEV_POWER_USAGE,
-		C.DCGM_FI_DEV_GPU_TEMP,
-		C.DCGM_FI_DEV_GPU_UTIL,
-		C.DCGM_FI_DEV_MEM_COPY_UTIL,
-		C.DCGM_FI_DEV_SM_CLOCK,
-		C.DCGM_FI_DEV_MEM_CLOCK,
-		C.DCGM_FI_DEV_PCIE_RX_THROUGHPUT,
-		C.DCGM_FI_DEV_PCIE_TX_THROUGHPUT,
-		C.DCGM_FI_DEV_PCIE_REPLAY_COUNTER,
-		C.DCGM_FI_DEV_FAN_SPEED,
+	fields := []Short{
+		DCGM_FI_DEV_POWER_USAGE,
+		DCGM_FI_DEV_GPU_TEMP,
+		DCGM_FI_DEV_GPU_UTIL,
+		DCGM_FI_DEV_MEM_COPY_UTIL,
+		DCGM_FI_DEV_SM_CLOCK,
+		DCGM_FI_DEV_MEM_CLOCK,
+		DCGM_FI_DEV_PCIE_RX_THROUGHPUT,
+		DCGM_FI_DEV_PCIE_TX_THROUGHPUT,
+		DCGM_FI_DEV_PCIE_REPLAY_COUNTER,
+		DCGM_FI_DEV_FAN_SPEED,
+		DCGM_FI_DEV_ECC_SBE_VOL_DEV,
+		DCGM_FI_DEV_ECC_DBE_VOL_DEV,
+		DCGM_FI_DEV_FB_TOTAL,
+		DCGM_FI_DEV_FB_USED,
+		DCGM_FI_DEV_FB_FREE,
 	}
 
-	fieldsName := fmt.Sprintf("devStatusFields%d", rand.Uint64())
-	fieldsId, err := FieldGroupCreate(fieldsName, deviceFields)
+	fieldGrpName := fmt.Sprintf("devStatusFields%d", rand.Uint64())
+	fieldGrp, err := FieldGroupCreate(fieldGrpName, fields)
 	if err != nil {
 		return
 	}
 
-	groupName := fmt.Sprintf("devStatus%d", rand.Uint64())
-	groupId, err := WatchFields(gpuId, fieldsId, groupName)
+	gpuGrpName := fmt.Sprintf("devStatusGrp%d", rand.Uint64())
+	gpuGrpHdl, err := WatchFields([]uint{gpuId}, fieldGrp, gpuGrpName)
 	if err != nil {
-		_ = FieldGroupDestroy(fieldsId)
+		_ = FieldGroupDestroy(fieldGrp)
 		return
 	}
 
-	values, err := GetLatestValuesForFields(gpuId, deviceFields)
+	values, err := GetLatestValuesForFields(gpuId, fields)
 	if err != nil {
-		_ = FieldGroupDestroy(fieldsId)
-		_ = DestroyGroup(groupId)
+		_ = FieldGroupDestroy(fieldGrp)
+		_ = DestroyGroup(gpuGrpHdl)
 		return status, err
 	}
 
-	power := values[pwr].Float64()
-
 	clocks := ClockInfo{
-		Cores:  values[smClock].Int64(),
-		Memory: values[memClock].Int64(),
+		Sm:  values[IdxSmClock].Int64(),
+		Mem: values[IdxMemClock].Int64(),
 	}
 
-	gpuUtil := UtilizationInfo{
-		GPU:    values[sm].Int64(),
-		Memory: values[mem].Int64(),
+	utilInfo := UtilizationInfo{
+		Gpu: values[IdxGpuUtil].Int64(),
+		Mem: values[IdxMemUtil].Int64(),
 	}
 
-	pci := PCIStatusInfo{
-		Rx:      values[pcieRxThroughput].Int64(),
-		Tx:      values[pcieTxThroughput].Int64(),
-		Replays: values[pcieReplay].Int64(),
+	pciInfo := PCIStatusInfo{
+		Rx:            values[IdxPcieRxThroughput].Int64(),
+		Tx:            values[IdxPcieTxThroughput].Int64(),
+		ReplayCounter: values[IdxPcieReplayCounter].Int64(),
 	}
+
+	memUsage := MemoryUsage{
+		Total: values[IdxMemTotal].Int64(),
+		Free:  values[IdxMemFree].Int64(),
+		Used:  values[IdxMemUsed].Int64(),
+	}
+
 	status = DeviceStatus{
-		Power:       power,
-		Temperature: values[temp].Int64(),
-		Utilization: gpuUtil,
-		Clocks:      clocks,
-		PCI:         pci,
-		FanSpeed:    values[fanSpeed].Int64(),
+		Id:           gpuId,
+		Power:        GetFieldValueStr(values[IdxPower], "float64"),
+		Temperature:  GetFieldValueStr(values[IdxGpuTemp], "int64"),
+		Utilization:  utilInfo,
+		Clocks:       clocks,
+		PCI:          pciInfo,
+		MemUsage:     memUsage,
+		FanSpeed:     GetFieldValueStr(values[IdxFanSpeed], "int64"),
+		EccSbeVolDev: GetFieldValueStr(values[IdxEccSbeVolDev], "int64"),
+		EccDbeVolDev: GetFieldValueStr(values[IdxEccDbeVolDev], "int64"),
 	}
 
-	_ = FieldGroupDestroy(fieldsId)
-	_ = DestroyGroup(groupId)
+	_ = FieldGroupDestroy(fieldGrp)
+	_ = DestroyGroup(gpuGrpHdl)
 	return
+}
+
+func getDeviceProfStatus(gpuId uint) (status DeviceProfStatus, err error) {
+	const (
+		IdxSmActive int = iota
+		IdxSmOccupancy
+		IdxDramActive
+	)
+
+	fields := []Short{
+		DCGM_FI_PROF_SM_ACTIVE,
+		DCGM_FI_PROF_SM_OCCUPANCY,
+		DCGM_FI_PROF_DRAM_ACTIVE,
+	}
+
+	fieldGrpName := fmt.Sprintf("devProfStatusFields%d", rand.Uint64())
+	fieldGrp, err := FieldGroupCreate(fieldGrpName, fields)
+	if err != nil {
+		return
+	}
+
+	grpName := fmt.Sprintf("devProfStatusGrp%d", rand.Uint64())
+	grpId, err := WatchFields([]uint{gpuId}, fieldGrp, grpName)
+	if err != nil {
+		_ = FieldGroupDestroy(fieldGrp)
+		return
+	}
+
+	time.Sleep(2000 * time.Millisecond)
+	values, err := GetLatestValuesForFields(gpuId, fields)
+	if err != nil {
+		_ = FieldGroupDestroy(fieldGrp)
+		_ = DestroyGroup(grpId)
+		return status, err
+	}
+
+	status = DeviceProfStatus{
+		SmActive:    GetFieldValueStr(values[IdxSmActive], "float64"),
+		SmOccupancy: GetFieldValueStr(values[IdxSmOccupancy], "float64"),
+		DramActive:  GetFieldValueStr(values[IdxDramActive], "float64"),
+	}
+
+	_ = FieldGroupDestroy(fieldGrp)
+	_ = DestroyGroup(grpId)
+	return
+
 }
