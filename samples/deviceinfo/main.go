@@ -51,10 +51,10 @@ var (
 )
 
 func main() {
-	// choose dcgm hostengine running mode
-	// 1. dcgm.Embedded
-	// 2. dcgm.Standalone -connect "addr", -socket "isSocket"
-	// 3. dcgm.StartHostengine
+	// choose ixdcgm hostengine running mode
+	// 1. ixdcgm.Embedded
+	// 2. ixdcgm.Standalone -connect "addr", -socket "isSocket"
+	// 3. ixdcgm.StartHostengine
 	flag.Parse()
 	cleanup, err := ixdcgm.Init(ixdcgm.Standalone, *connectAddr, *isSocket)
 	if err != nil {
