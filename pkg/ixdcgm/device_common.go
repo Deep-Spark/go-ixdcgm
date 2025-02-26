@@ -24,13 +24,11 @@ package ixdcgm
 #include "include/ixdcgmApiExport.h"
 */
 import "C"
-import "fmt"
 
 func getDeviceOnSameBoard(gpuId1, gpuId2 uint) (isOnSameBoard bool, err error) {
 	var onSameBoard C.int
-	r := C.ixdcgmDeviceOnSameBoard(C.ulong(handle.handle), C.uint(gpuId1), C.uint(gpuId2), &onSameBoard)
-	fmt.Println(r)
-	if err = ixdcgmErrorString(r); err != nil {
+	ret := C.ixdcgmDeviceOnSameBoard(C.ulong(handle.handle), C.uint(gpuId1), C.uint(gpuId2), &onSameBoard)
+	if err = ixdcgmErrorString(ret); err != nil {
 		return false, err
 	}
 	if onSameBoard == 0 {

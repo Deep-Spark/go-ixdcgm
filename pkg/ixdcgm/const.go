@@ -130,14 +130,26 @@ const (
 	DCGM_FI_DEV_ECC_DBE_VOL_DEV             Short = C.DCGM_FI_DEV_ECC_DBE_VOL_DEV
 	DCGM_FI_INTERNAL_FIELDS_0_START         Short = C.DCGM_FI_INTERNAL_FIELDS_0_START
 	DCGM_FI_INTERNAL_FIELDS_0_END           Short = C.DCGM_FI_INTERNAL_FIELDS_0_END
-
-	DCGM_FI_PROF_GR_ENGINE_ACTIVE   Short = C.DCGM_FI_PROF_GR_ENGINE_ACTIVE
-	DCGM_FI_PROF_SM_ACTIVE          Short = C.DCGM_FI_PROF_SM_ACTIVE
-	DCGM_FI_PROF_SM_OCCUPANCY       Short = C.DCGM_FI_PROF_SM_OCCUPANCY
-	DCGM_FI_PROF_PIPE_TENSOR_ACTIVE Short = C.DCGM_FI_PROF_PIPE_TENSOR_ACTIVE
-	DCGM_FI_PROF_DRAM_ACTIVE        Short = C.DCGM_FI_PROF_DRAM_ACTIVE
-	DCGM_FI_PROF_PCIE_TX_BYTES      Short = C.DCGM_FI_PROF_PCIE_TX_BYTES
-	DCGM_FI_PROF_PCIE_RX_BYTES      Short = C.DCGM_FI_PROF_PCIE_RX_BYTES
+	DCGM_FI_PROF_SM_ACTIVE                  Short = C.DCGM_FI_PROF_SM_ACTIVE
+	DCGM_FI_PROF_SM_OCCUPANCY               Short = C.DCGM_FI_PROF_SM_OCCUPANCY
+	DCGM_FI_PROF_DRAM_ACTIVE                Short = C.DCGM_FI_PROF_DRAM_ACTIVE
 
 	DCGM_FI_MAX_FIELDS Short = C.DCGM_FI_MAX_FIELDS
+)
+
+type HealthSystem uint
+
+const (
+	DCGM_HEALTH_WATCH_PCIE    HealthSystem = 0x1
+	DCGM_HEALTH_WATCH_THERMAL HealthSystem = 0x80
+	DCGM_HEALTH_WATCH_POWER   HealthSystem = 0x100
+	DCGM_HEALTH_WATCH_ALL     HealthSystem = 0xFFFFFFFF //  All watches only support PCIE watch now
+)
+
+type HealthResult uint
+
+const (
+	DCGM_HEALTH_RESULT_PASS HealthResult = 0  // All results within this system are reporting normal
+	DCGM_HEALTH_RESULT_WARN HealthResult = 10 // A warning has been issued, refer to the response for more information
+	DCGM_HEALTH_RESULT_FAIL HealthResult = 20 // A failure has been issued, refer to the response for more information
 )

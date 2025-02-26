@@ -30,8 +30,32 @@ package ixdcgm
 import "C"
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"unsafe"
 )
+
+const (
+	dcgmInt32Blank = 0x7ffffff0         // 2147483632
+	dcgmInt64Blank = 0x7ffffffffffffff0 // 9223372036854775792
+)
+
+func uintPtr(c C.uint) *uint {
+	i := uint(c)
+	return &i
+}
+
+func stringPtr(c *C.char) *string {
+	s := C.GoString(c)
+	return &s
+}
+
+type DcgmError struct {
+	msg  string         // description of error
+	Code C.dcgmReturn_t // dcgmReturn_t value of error
+}
+
+func (e *DcgmError) Error() string { return e.msg }
 
 func makeVersion1(struct_type uintptr) C.uint {
 	version := C.uint(struct_type | 1<<24)
@@ -45,6 +69,16 @@ func makeVersion2(struct_type uintptr) C.uint {
 
 func makeVersion3(struct_type uintptr) C.uint {
 	version := C.uint(struct_type | 3<<24)
+	return version
+}
+
+func makeVersion4(struct_type uintptr) C.uint {
+	version := C.uint(struct_type | 4<<24)
+	return version
+}
+
+func makeVersion5(struct_type uintptr) C.uint {
+	version := C.uint(struct_type | 5<<24)
 	return version
 }
 
@@ -86,4 +120,62 @@ func removeBytesSpaces(originalBytes []byte) string {
 	cleanedBytes := originalBytes[:lastNonZeroIndex+1]
 
 	return string(cleanedBytes)
+}
+
+// convertBitsetStr converts a set of numbers in string format to a range representation.
+// input sample: "{0,1,2,3,6,10,11,12,13}"
+// output sample: "0-3,6,10-13"
+func convertBitsetStr(input string) (output string) {
+	input = strings.Trim(input, "{}")
+	numStrs := strings.Split(input, ",")
+	nums := make([]int, len(numStrs))
+
+	// Convert string numbers to integers
+	for i, numStr := range numStrs {
+		num, err := strconv.Atoi(strings.TrimSpace(numStr))
+		if err != nil {
+			panic(err)
+		}
+		nums[i] = num
+	}
+
+	// Sort the numbers (assuming they are not sorted)
+	// If the input is always sorted, you can skip this step
+	for i := 0; i < len(nums)-1; i++ {
+		for j := 0; j < len(nums)-1-i; j++ {
+			if nums[j] > nums[j+1] {
+				nums[j], nums[j+1] = nums[j+1], nums[j]
+			}
+		}
+	}
+
+	// Process the numbers to create ranges
+	var result []string
+	start := nums[0]
+	end := nums[0]
+
+	for i := 1; i < len(nums); i++ {
+		if nums[i] == end+1 {
+			end = nums[i]
+		} else {
+			if start == end {
+				result = append(result, strconv.Itoa(start))
+			} else {
+				result = append(result, fmt.Sprintf("%d-%d", start, end))
+			}
+			start = nums[i]
+			end = nums[i]
+		}
+	}
+
+	// Handle the last range
+	if start == end {
+		result = append(result, strconv.Itoa(start))
+	} else {
+		result = append(result, fmt.Sprintf("%d-%d", start, end))
+	}
+
+	// Join the result into a single string
+	output = strings.Join(result, ",")
+	return
 }

@@ -59,14 +59,13 @@ func ixdcgmGetDeviceRunningProcesses(gpuId uint) (cnt C.uint32_t, pids []C.uint6
 		usedMemoryBytes = make([]C.uint64_t, cnt)
 		ret := C.ixdcgmGetDeviceRunningProcesses(C.ulong(handle.handle), C.uint(gpuId), &cnt, &pids[0], &usedMemoryBytes[0])
 		if ret == C.IXDCGM_RET_OK {
-			// fmt.Printf("the number of valid pids/usedMemoryBytes info is %d\n", uint32(cnt))
 			err = nil
 			return
 		} else if ret == C.IXDCGM_RET_INSUFFICIENT_SIZE {
-			// fmt.Printf("INSUFFICIENT_SIZE Warnnig: the needed buffer size is %d\n", uint32(cnt))
+			fmt.Printf("INSUFFICIENT_SIZE Warnnig: the needed buffer size is %d\n", uint32(cnt))
 			continue
-		} else if ret == C.IXDCGM_RET_BADPARAM {
-			err = fmt.Errorf("bad parameter")
+		} else {
+			err = ixdcgmErrorString(ret)
 			return
 		}
 	}

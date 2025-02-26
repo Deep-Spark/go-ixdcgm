@@ -18,7 +18,6 @@ limitations under the License.
 package main
 
 import (
-	"flag"
 	"fmt"
 	"html/template"
 	"log"
@@ -29,7 +28,7 @@ import (
 
 const (
 	deviceInfo = `Driver Version         : {{.Identifiers.DriverVersion}}
-GPUId		       : {{.GPUId}}
+GPUId                  : {{.GPUId}}
 IxDCGMSupported        : {{.IxDCGMSupported}}
 Uuid                   : {{.Uuid}}
 Product Name           : {{.Identifiers.ProductName}}
@@ -41,22 +40,20 @@ Used Memory (MB):      : {{or .MemoryUsage.Used "N/A"}}
 Free Memory (MB):      : {{or .MemoryUsage.Free "N/A"}}
 Bandwidth (MB/s)       : {{or .PCI.Bandwidth "N/A"}}
 PowerLimit (W)         : {{or .PowerLimit "N/A"}}
----------------------------------------------------------------------
+CPUAffinity            : {{or .CPUAffinity "N/A"}}
+NUMAAffinity           : {{or .NUMAAffinity "N/A"}}
+P2P Available          : {{if not .Topology}}None{{else}}{{range .Topology}}
+    GPU{{.GPU}} - (BusID){{.BusID}} - {{.Link.PCIPaths}}{{end}}{{end}}
+--------------------------------------------------
 `
 )
 
-var (
-	connectAddr = flag.String("connectAddr", "0.0.0.0:5777", "DCGM connect address")
-	isSocket    = flag.String("socket", "0", "Connect to Unix socket")
-)
-
 func main() {
-	// choose ixdcgm hostengine running mode
+	// Choose ixdcgm hostengine running mode
 	// 1. ixdcgm.Embedded
 	// 2. ixdcgm.Standalone -connect "addr", -socket "isSocket"
 	// 3. ixdcgm.StartHostengine
-	flag.Parse()
-	cleanup, err := ixdcgm.Init(ixdcgm.Standalone, *connectAddr, *isSocket)
+	cleanup, err := ixdcgm.Init(ixdcgm.Embedded)
 	if err != nil {
 		panic(err)
 	}
@@ -76,7 +73,7 @@ func main() {
 		}
 
 		if err = t.Execute(os.Stdout, d); err != nil {
-			log.Panicln("Template error:", err)
+			log.Panicln("Template error: ", err)
 		}
 	}
 }

@@ -20,17 +20,15 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
-	"os/signal"
-	"syscall"
 
 	"gitee.com/deep-spark/go-ixdcgm/pkg/ixdcgm"
 )
 
 func main() {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-
+	// Choose ixdcgm hostengine running mode
+	// 1. ixdcgm.Embedded
+	// 2. ixdcgm.Standalone -connect "addr", -socket "isSocket"
+	// 3. ixdcgm.StartHostengine
 	cleanup, err := ixdcgm.Init(ixdcgm.Embedded)
 	if err != nil {
 		log.Panicln(err)

@@ -46,6 +46,8 @@ func (e *embedded) Shutdown() error {
 }
 
 func (e *embedded) Start(args ...string) (DcgmHandle, error) {
+	fmt.Println("Start ixdcgm based on Embedded mode.")
+
 	result := C.dcgmInit()
 	if err := errorString(result); err != nil {
 		return DcgmHandle{}, fmt.Errorf("failed to initialize dcgm: %v", err)

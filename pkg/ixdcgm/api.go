@@ -27,6 +27,7 @@ package ixdcgm
 */
 import "C"
 import (
+	"context"
 	"fmt"
 	"sync"
 	"unsafe"
@@ -38,16 +39,16 @@ var (
 	ixdcgmLibHandler  unsafe.Pointer
 	ixdcgmInitCounter int
 	mux               sync.Mutex
-	connectionsMode   Interface
+	connection        Interface
 	handle            DcgmHandle
 )
 
-// to do path
+// dynamic library path
 const (
 	ixdcgmLib = "libixdcgm.so"
 )
 
-func initIxDcgm(m int, args ...string) (err error) {
+func initIxDcgm(m int) (err error) {
 	lib := string2Char(ixdcgmLib)
 	defer freeCString(lib)
 
@@ -56,7 +57,7 @@ func initIxDcgm(m int, args ...string) (err error) {
 		return fmt.Errorf("failed to load %s", ixdcgmLib)
 	}
 
-	connectionsMode, err = New(m)
+	connection, err = New(m)
 	if err != nil {
 		return err
 	}
@@ -70,12 +71,12 @@ func Init(m int, args ...string) (cleanup func(), err error) {
 		return nil, fmt.Errorf("ixdcgm already initialized %d", ixdcgmInitCounter)
 	}
 	if ixdcgmInitCounter == 0 {
-		err = initIxDcgm(m, args...)
+		err = initIxDcgm(m)
 		if err != nil {
 			return nil, err
 		}
 
-		handle, err = connectionsMode.Start(args...)
+		handle, err = connection.Start(args...)
 		if err != nil {
 			return nil, err
 		}
@@ -98,7 +99,7 @@ func shutdown() (err error) {
 	}
 
 	if ixdcgmInitCounter == 1 {
-		err = connectionsMode.Shutdown()
+		err = connection.Shutdown()
 		if err != nil {
 			return err
 		}
@@ -113,13 +114,13 @@ func GetAllDeviceCount() (uint, error) {
 	return getAllDeviceCount()
 }
 
-func GetDeviceInfo(gpuId uint) (DeviceInfo, error) {
-	return getDeviceInfo(gpuId)
+func GetSupportedDevices() ([]uint, error) {
+	return getSupportedDevices()
 }
 
 // GetDeviceInfo describes the given device
-func GetSupportedDevices() ([]uint, error) {
-	return getSupportedDevices()
+func GetDeviceInfo(gpuId uint) (DeviceInfo, error) {
+	return getDeviceInfo(gpuId)
 }
 
 // GetDeviceStatus monitors GPU status including its power, memory and GPU utilization
@@ -137,6 +138,28 @@ func GetDeviceRunningProcesses(gpuId uint) ([]DeviceProcessInfo, error) {
 	return getDeviceRunningProcesses(gpuId)
 }
 
+// GetDeviceRunning checks whether the two GPUs are on the same board
 func GetDeviceOnSameBoard(gpuId1, gpuId2 uint) (bool, error) {
 	return getDeviceOnSameBoard(gpuId1, gpuId2)
+}
+
+// HealthCheckByGpuId monitors GPU health for any errors/failures/warnings
+func HealthCheckByGpuId(gpuId uint) (DeviceHealth, error) {
+	return healthCheckByGpuId(gpuId)
+}
+
+// GetDeviceTopology returns device topology corresponding to the gpuId
+func GetDeviceTopology(gpuId uint) ([]P2PLink, error) {
+	return getDeviceTopology(gpuId)
+}
+
+// ListenForPolicyViolationsForAllGPUs sets GPU usage and error policies and notifies in case of any violations on all GPUs
+func ListenForPolicyViolationsForAllGPUs(ctx context.Context, params *PolicyConditionParams) (<-chan PolicyViolation, error) {
+	groupId := GroupAllGPUs()
+	return registerPolicy(ctx, groupId, params)
+}
+
+// ListenForPolicyViolationsForGPUs sets GPU usage and error policies and notifies in case of any violations on special GPUs
+func ListenForPolicyViolationsForGPUs(ctx context.Context, params *PolicyConditionParams, gpuIds ...uint) (<-chan PolicyViolation, error) {
+	return registerPolicyForGpus(ctx, params, gpuIds...)
 }
