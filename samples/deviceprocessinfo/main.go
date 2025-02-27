@@ -20,18 +20,16 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
-	"os/signal"
-	"syscall"
 
 	"gitee.com/deep-spark/go-ixdcgm/pkg/ixdcgm"
 )
 
 func main() {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-
-	cleanup, err := ixdcgm.Init(ixdcgm.Embedded, "LogInfo")
+	// Choose ixdcgm hostengine running mode
+	// 1. ixdcgm.Embedded
+	// 2. ixdcgm.Standalone -connect "addr", -socket "isSocket"
+	// 3. ixdcgm.StartHostengine
+	cleanup, err := ixdcgm.Init(ixdcgm.Embedded, "LogWarn")
 	if err != nil {
 		log.Panicln(err)
 	}
@@ -49,7 +47,7 @@ func main() {
 			fmt.Printf("%v\n", err)
 		}
 		for _, info := range infos {
-			fmt.Printf("> Pid: %d, Name: %s, UsedGpuMemory(MiB): %d\n", info.Pid, info.Name, info.UsedGpuMemory)
+			fmt.Printf("> Pid: %d\n  Name: %s\n  UsedGpuMemory(MiB): %d\n", info.Pid, info.Name, info.UsedGpuMemory)
 		}
 		fmt.Println("---------------------------------------------------------------------")
 	}

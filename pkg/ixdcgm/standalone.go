@@ -49,7 +49,7 @@ func (s *standalone) Shutdown() error {
 }
 
 func (s *standalone) Start(args ...string) (DcgmHandle, error) {
-	fmt.Printf("standalone mode: %v\n", args)
+	fmt.Println("Start ixdcgm based on Standalone mode.")
 
 	if len(args) < 2 {
 		return DcgmHandle{}, fmt.Errorf("missing dcgm address or port")

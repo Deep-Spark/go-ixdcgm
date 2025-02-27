@@ -72,7 +72,7 @@ func WatchFields(gpuIds []uint, fieldGrp FieldGrpHandle, groupName string) (Grou
 		return GroupHandle{}, err
 	}
 	for _, gpuId := range gpuIds {
-		err = AddDevice(group, gpuId)
+		err = AddToGroup(group, gpuId)
 		if err != nil {
 			return GroupHandle{}, err
 		}
@@ -150,4 +150,46 @@ func GetFieldValueStr(fv FieldValue_v1, typ string) string {
 		os.Exit(1)
 		return "N/A"
 	}
+}
+
+type Field_Entity_Group uint
+
+const (
+	FE_NONE Field_Entity_Group = iota
+	FE_GPU
+	FE_VGPU
+	FE_SWITCH
+	FE_GPU_I
+	FE_GPU_CI
+	FE_LINK
+	FE_CPU
+	FE_CPU_CORE
+	FE_COUNT
+)
+
+type GroupEntityPair struct {
+	EntityGroupId Field_Entity_Group
+	EntityId      uint
+}
+
+func (e Field_Entity_Group) String() string {
+	switch e {
+	case FE_GPU:
+		return "GPU"
+	case FE_VGPU:
+		return "vGPU"
+	case FE_SWITCH:
+		return "Switch"
+	case FE_GPU_I:
+		return "GPU Instance"
+	case FE_GPU_CI:
+		return "GPU Compute Instance"
+	case FE_LINK:
+		return "Link"
+	case FE_CPU:
+		return "CPU"
+	case FE_CPU_CORE:
+		return "CPU Core"
+	}
+	return "unknown"
 }

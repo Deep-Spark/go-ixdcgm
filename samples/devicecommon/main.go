@@ -30,7 +30,7 @@ var (
 )
 
 func main() {
-	// choose ixdcgm hostengine running mode
+	// Choose ixdcgm hostengine running mode
 	// 1. ixdcgm.Embedded
 	// 2. ixdcgm.Standalone -connect "addr", -socket "isSocket"
 	// 3. ixdcgm.StartHostengine

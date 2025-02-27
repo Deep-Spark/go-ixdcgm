@@ -1,0 +1,10 @@
+*.out
+*.log
+
+# MacOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.code-workspace

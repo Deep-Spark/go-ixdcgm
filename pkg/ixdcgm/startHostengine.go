@@ -28,6 +28,6 @@ func (s *startHostengine) Shutdown() (err error) {
 }
 
 func (s startHostengine) Start(args ...string) (DcgmHandle, error) {
-	fmt.Println("hello startHostengine mode")
+	fmt.Println("Start ixdcgm based on StartHostengine mode.")
 	return DcgmHandle{}, nil
 }

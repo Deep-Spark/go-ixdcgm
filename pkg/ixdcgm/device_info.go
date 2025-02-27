@@ -54,10 +54,13 @@ type DeviceInfo struct {
 	GPUId           uint
 	IxDCGMSupported string
 	Uuid            string
-	PowerLimit      uint
+	PowerLimit      uint // W
 	PCI             PciInfo
 	MemoryUsage     MemoryUsageInfo
 	Identifiers     DeviceIdentifier
+	Topology        []P2PLink
+	CPUAffinity     string
+	NUMAAffinity    string
 }
 
 func getAllDeviceCount() (gpuCount uint, err error) {
@@ -131,7 +134,7 @@ func getDeviceInfo(gpuId uint) (DeviceInfo, error) {
 		return DeviceInfo{}, err
 	}
 
-	// check if the given GPU is DCGM supported
+	// check if the given GPU is IxDCGM supported
 	gpus, err := getSupportedDevices()
 	if err != nil {
 		return DeviceInfo{}, err
@@ -144,17 +147,27 @@ func getDeviceInfo(gpuId uint) (DeviceInfo, error) {
 			break
 		}
 	}
+
+	cpuAffinity, err := getCPUAffinity(gpuId)
+	if err != nil {
+		return DeviceInfo{}, err
+	}
+	numaAffinity, err := getNUMAAffinity(gpuId)
+	if err != nil {
+		return DeviceInfo{}, err
+	}
+
+	var topology []P2PLink
 	var bandwidth int64
 	if supported == "Y" {
+		topology, err = getDeviceTopology(gpuId)
+		if err != nil {
+			return DeviceInfo{}, err
+		}
 		bandwidth, err = getPciBandwidth(gpuId)
 		if err != nil {
 			return DeviceInfo{}, err
 		}
-
-		// err = getDeviceTopology(gpuId)
-		// if err != nil {
-		// 	return DeviceInfo{}, err
-		// }
 	}
 
 	uuid := cChar2String(&dcgmAttr.identifiers.uuid[0])
@@ -186,6 +199,9 @@ func getDeviceInfo(gpuId uint) (DeviceInfo, error) {
 		PCI:             pci,
 		MemoryUsage:     memInfo,
 		Identifiers:     id,
+		Topology:        topology,
+		CPUAffinity:     cpuAffinity,
+		NUMAAffinity:    numaAffinity,
 	}, nil
 }
 
@@ -204,9 +220,15 @@ func getSupportedDevices() (gpus []uint, err error) {
 	}
 	return
 }
-
 func getCPUAffinity(gpuId uint) (string, error) {
+	return getAffinity(gpuId, "CPU")
+}
 
+func getNUMAAffinity(gpuId uint) (string, error) {
+	return getAffinity(gpuId, "MEM")
+}
+
+func getAffinity(gpuId uint, typ string) (string, error) {
 	const (
 		affinity0 int = iota
 		affinity1
@@ -216,19 +238,29 @@ func getCPUAffinity(gpuId uint) (string, error) {
 	)
 
 	affFields := make([]Short, fieldsCount)
-	affFields[affinity0] = DCGM_FI_DEV_CPU_AFFINITY_0
-	affFields[affinity1] = DCGM_FI_DEV_CPU_AFFINITY_1
-	affFields[affinity2] = DCGM_FI_DEV_CPU_AFFINITY_2
-	affFields[affinity3] = DCGM_FI_DEV_CPU_AFFINITY_3
+	switch typ {
+	case "CPU":
+		affFields[affinity0] = DCGM_FI_DEV_CPU_AFFINITY_0
+		affFields[affinity1] = DCGM_FI_DEV_CPU_AFFINITY_1
+		affFields[affinity2] = DCGM_FI_DEV_CPU_AFFINITY_2
+		affFields[affinity3] = DCGM_FI_DEV_CPU_AFFINITY_3
+	case "MEM":
+		affFields[affinity0] = DCGM_FI_DEV_MEM_AFFINITY_0
+		affFields[affinity1] = DCGM_FI_DEV_MEM_AFFINITY_1
+		affFields[affinity2] = DCGM_FI_DEV_MEM_AFFINITY_2
+		affFields[affinity3] = DCGM_FI_DEV_MEM_AFFINITY_3
+	default:
+		return "N/A", fmt.Errorf("not supported affinity type: %s", typ)
+	}
 
-	fieldGrpName := fmt.Sprintf("cpuAffFields%d", gpuId)
+	fieldGrpName := fmt.Sprintf("affFields%d", gpuId)
 	fieldGrpHdl, err := FieldGroupCreate(fieldGrpName, affFields)
 	if err != nil {
 		return "N/A", err
 	}
 	defer FieldGroupDestroy(fieldGrpHdl)
 
-	gpuGrpName := fmt.Sprintf("cpuAff%d", gpuId)
+	gpuGrpName := fmt.Sprintf("aff%d", gpuId)
 	gpuGrpHdl, err := WatchFields([]uint{gpuId}, fieldGrpHdl, gpuGrpName)
 	if err != nil {
 		return "N/A", err
@@ -247,6 +279,6 @@ func getCPUAffinity(gpuId uint) (string, error) {
 	bits[3] = uint64(values[affinity3].Int64())
 
 	b := bitset.From(bits)
-
-	return b.String(), nil
+	str := convertBitsetStr(b.String())
+	return str, nil
 }
