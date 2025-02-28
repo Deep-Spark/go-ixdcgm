@@ -47,20 +47,20 @@ func main() {
 		PCIePolicyEnabled:      true,
 		ThermalPolicyEnabled:   true,
 		ThermalPolicyThreshold: 60, // °C
+		PowerPolicyEnabled:     true,
+		PowerPolicyThreshold:   250, // W
 	}
 
 	// Monitor policy violations for all GPUs
+	// Note: if you want to monitor policy violations for special GPUs (e.g., gpuId0 and gpuId1),
+	// use the api: ixdcgm.ListenForPolicyViolationsForGPUs(ctx, params, gpuId0, gpuId1)
 	ch, err := ixdcgm.ListenForPolicyViolationsForAllGPUs(ctx, params)
-
-	// If you want to monitor policy violations for particular GPUs (e.g., gpuId0 and gpuId1),
-	// use the following code:
-	// ch, err := ixdcgm.ListenForPolicyViolationsForGPUs(ctx, params, 0, 1)
-
 	if err != nil {
 		fmt.Printf("Failed to monitor policy violations, err: %v", err)
 		return
 	}
 
+	// Read the policy violations from the channel as soon as possible.
 	for {
 		select {
 		case pe := <-ch:
