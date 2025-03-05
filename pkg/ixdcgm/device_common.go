@@ -19,8 +19,6 @@ package ixdcgm
 
 /*
 #cgo LDFLAGS: -ldl
-#include "include/ixdcgmFields.h"
-#include "include/ixdcgmStructs.h"
 #include "include/ixdcgmApiExport.h"
 */
 import "C"

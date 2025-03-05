@@ -35,11 +35,6 @@ import (
 	"unsafe"
 )
 
-const (
-	dcgmInt32Blank = 0x7ffffff0         // 2147483632
-	dcgmInt64Blank = 0x7ffffffffffffff0 // 9223372036854775792
-)
-
 func uintPtr(c C.uint) *uint {
 	i := uint(c)
 	return &i
@@ -77,8 +72,8 @@ func makeVersion4(struct_type uintptr) C.uint {
 	return version
 }
 
-func makeVersion5(struct_type uintptr) C.uint {
-	version := C.uint(struct_type | 5<<24)
+func makeVersion10(struct_type uintptr) C.uint {
+	version := C.uint(struct_type | 10<<24)
 	return version
 }
 

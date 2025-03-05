@@ -1603,7 +1603,7 @@ extern "C"
      * for details on creating the group. Alternatively, pass in the group id as \a DCGM_GROUP_ALL_GPUS to perform
      * operation on all the GPUs.
      * @param validate           IN: The validation to perform after the action.
-     * @param response          OUT: Result of the validation process. Refer to \ref dcgmDiagResponse_t for details.
+     * @param response          OUT: Result of the validation process. Refer to \ref dcgmDiagResponse_v10 for details.
      *
      * @return
      *        - \ref DCGM_ST_OK                   if the call was successful
@@ -1618,7 +1618,7 @@ extern "C"
     dcgmReturn_t DCGM_PUBLIC_API dcgmActionValidate(dcgmHandle_t           pDcgmHandle,
                                                     dcgmGpuGrp_t           groupId,
                                                     dcgmPolicyValidation_t validate,
-                                                    dcgmDiagResponse_t*    response);
+                                                    dcgmDiagResponse_v10*  response);
 
     /**
      * Inform the action manager to perform a manual validation of a group of GPUs on the system
@@ -1627,7 +1627,7 @@ extern "C"
      * @param drd                IN: Contains the group id, test names, test parameters, struct version, and the
      * validation that should be performed. Look at \ref dcgmGroupCreate for details on creating the group.
      * Alternatively, pass in the group id as \a DCGM_GROUP_ALL_GPUS to perform operation on all the GPUs.
-     * @param response          OUT: Result of the validation process. Refer to \ref dcgmDiagResponse_t for details.
+     * @param response          OUT: Result of the validation process. Refer to \ref dcgmDiagResponse_v10 for details.
      *
      * @return
      *        - \ref DCGM_ST_OK                   if the call was successful
@@ -1638,9 +1638,9 @@ extern "C"
      *        - \ref DCGM_ST_GROUP_INCOMPATIBLE   if \a groupId refers to a group of non-homogeneous GPUs. This is
      *                                            currently not allowed.
      */
-    dcgmReturn_t DCGM_PUBLIC_API dcgmActionValidate_v2(dcgmHandle_t        pDcgmHandle,
-                                                       dcgmRunDiag_v7*     drd,
-                                                       dcgmDiagResponse_t* response);
+    dcgmReturn_t DCGM_PUBLIC_API dcgmActionValidate_v2(dcgmHandle_t          pDcgmHandle,
+                                                       dcgmRunDiag_v8*       drd,
+                                                       dcgmDiagResponse_v10* response);
 
     /**
      * Run a diagnostic on a group of GPUs
@@ -1667,7 +1667,17 @@ extern "C"
     dcgmReturn_t DCGM_PUBLIC_API dcgmRunDiagnostic(dcgmHandle_t          pDcgmHandle,
                                                    dcgmGpuGrp_t          groupId,
                                                    dcgmDiagnosticLevel_t diagLevel,
-                                                   dcgmDiagResponse_t*   diagResponse);
+                                                   dcgmDiagResponse_v10* diagResponse);
+    /**
+     * Stop a diagnostic if there is one currently running.
+     *
+     * @param pDcgmHandle                   IN: DCGM Handle
+     *
+     * @return
+     *        - \ref DCGM_ST_OK                   if the call was successful
+     *        - \ref DCGM_ST_BADPARAM             if a provided parameter is invalid or missing
+     */
+    dcgmReturn_t DCGM_PUBLIC_API dcgmStopDiagnostic(dcgmHandle_t pDcgmHandle);
 
     /** @} */  // Closing for DCGMAPI_PO_MI
 
@@ -2008,8 +2018,6 @@ extern "C"
      *
      */
     dcgmReturn_t DCGM_PUBLIC_API dcgmAddFakeInstances(dcgmHandle_t pDcgmHandle, dcgmMigHierarchy_v2* hierarchy);
-
-    dcgmReturn_t DCGM_PUBLIC_API dcgmDeviceOnSameBoard(dcgmHandle_t pixdcgmHandle, unsigned int gpuId1, unsigned int gpuId2, int* onSameBoard);
 
 #ifdef __cplusplus
 }
