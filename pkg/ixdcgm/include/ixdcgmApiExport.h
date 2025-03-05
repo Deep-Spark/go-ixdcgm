@@ -10,9 +10,6 @@
 #define __IXDCGM_API_EXPORT_H__
 
 #include "ixdcgmStructs.h"
-
-#include "ixdcgmFields.h"
-
 #include <stdbool.h>
 
 #ifdef __cplusplus
@@ -27,20 +24,6 @@ extern "C"
 #endif
 
 #define IXDCGM_PRIVATE_API __attribute((visibility("hidden")))
-    /**
-     * Get the IxLink link status for every IxLink in this system.
-     *
-     * @param pixdcgmHandle  IN: IxDCGM Handle
-     * @param linkStatus     OUT: Structure in which to store IxLink link statuses.
-     *
-     * @return
-     *        - \ref IXDCGM_RET_OK                if the call was successful.
-     *        - \ref IXDCGM_RET_NOT_SUPPORTED     if the given entityGroup does not support enumeration.
-     *        - \ref IXDCGM_RET_BADPARAM          if any parameter is invalid
-     *        - \ref IXDCGM_RET_VER_MISMATCH      if the version of linkStatus is not ixdcgmLinkStatus_v3
-     */
-    ixdcgmReturn_t IXDCGM_PUBLIC_API ixdcgmGetLinkStatus(ixdcgmHandle_t pixdcgmHandle, ixdcgmLinkStatus_v3 *linkStatus);
-
     /**
      * Gets the 2 GPUs are on the same board or not.
      * @param pixdcgmHandle    IN: IxDCGM Handle

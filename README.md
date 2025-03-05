@@ -208,6 +208,37 @@ Data            : {61}
 ```
 `Note`: Press Ctrl+C to stop the iteration output.
 
+
+To execute a diagnostic on the system and devices, run the following command:
+```
+$ go run samples/diag/main.go
+
+# sample output
+
+Software:
+
+  presence of drivers on the denylist (e.g. nouveau) pass
+  presence (and version) of NVML lib                 pass
+  presence (and version) of CUDA lib                 pass
+  presence (and version) of CUDA RT lib              pass
+  character device permissions                       pass
+
+GPU: 0
+
+  Memory               notrun
+  Diagnostic           notrun
+  PCIe                 notrun
+  SM Stress            notrun
+  Targeted Stress      notrun
+  Targeted Power       notrun
+  Memory Bandwidth     notrun
+  Memtest              notrun
+  Pulse Test           notrun
+  EUD Test             notrun
+  CPU EUD Test         notrun
+
+```
+
 ## License
 
 Copyright (c) 2024 Iluvatar CoreX. All rights reserved. This project has an Apache-2.0 license, as

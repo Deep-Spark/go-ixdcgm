@@ -148,13 +148,13 @@ func getDeviceInfo(gpuId uint) (DeviceInfo, error) {
 		}
 	}
 
-	cpuAffinity, err := getCPUAffinity(gpuId)
+	cpuAffinity, err := getAffinity(gpuId, "CPU")
 	if err != nil {
-		return DeviceInfo{}, err
+		fmt.Printf("Error getting cpu affinity, set CPU Affinity to N/A, err: %s", err)
 	}
-	numaAffinity, err := getNUMAAffinity(gpuId)
+	numaAffinity, err := getAffinity(gpuId, "NUMA")
 	if err != nil {
-		return DeviceInfo{}, err
+		fmt.Printf("Error getting numa affinity, set NUMA Affinity to N/A, err: %s", err)
 	}
 
 	var topology []P2PLink
@@ -220,15 +220,9 @@ func getSupportedDevices() (gpus []uint, err error) {
 	}
 	return
 }
-func getCPUAffinity(gpuId uint) (string, error) {
-	return getAffinity(gpuId, "CPU")
-}
 
-func getNUMAAffinity(gpuId uint) (string, error) {
-	return getAffinity(gpuId, "MEM")
-}
-
-func getAffinity(gpuId uint, typ string) (string, error) {
+// if err is not nil, return "N/A" as result
+func getAffinity(gpuId uint, typ string) (result string, err error) {
 	const (
 		affinity0 int = iota
 		affinity1
@@ -244,7 +238,7 @@ func getAffinity(gpuId uint, typ string) (string, error) {
 		affFields[affinity1] = DCGM_FI_DEV_CPU_AFFINITY_1
 		affFields[affinity2] = DCGM_FI_DEV_CPU_AFFINITY_2
 		affFields[affinity3] = DCGM_FI_DEV_CPU_AFFINITY_3
-	case "MEM":
+	case "NUMA":
 		affFields[affinity0] = DCGM_FI_DEV_MEM_AFFINITY_0
 		affFields[affinity1] = DCGM_FI_DEV_MEM_AFFINITY_1
 		affFields[affinity2] = DCGM_FI_DEV_MEM_AFFINITY_2
@@ -253,14 +247,14 @@ func getAffinity(gpuId uint, typ string) (string, error) {
 		return "N/A", fmt.Errorf("not supported affinity type: %s", typ)
 	}
 
-	fieldGrpName := fmt.Sprintf("affFields%d", gpuId)
+	fieldGrpName := fmt.Sprintf("%sAffFields%d", typ, gpuId)
 	fieldGrpHdl, err := FieldGroupCreate(fieldGrpName, affFields)
 	if err != nil {
 		return "N/A", err
 	}
 	defer FieldGroupDestroy(fieldGrpHdl)
 
-	gpuGrpName := fmt.Sprintf("aff%d", gpuId)
+	gpuGrpName := fmt.Sprintf("%sAff%d", typ, gpuId)
 	gpuGrpHdl, err := WatchFields([]uint{gpuId}, fieldGrpHdl, gpuGrpName)
 	if err != nil {
 		return "N/A", err
@@ -269,16 +263,26 @@ func getAffinity(gpuId uint, typ string) (string, error) {
 
 	values, err := GetLatestValuesForFields(gpuId, affFields)
 	if err != nil {
-		return "N/A", err
+		return "N/A", fmt.Errorf("Error getting %s affinity: %s", typ, err)
 	}
 
-	bits := make([]uint64, 4)
-	bits[0] = uint64(values[affinity0].Int64())
-	bits[1] = uint64(values[affinity1].Int64())
-	bits[2] = uint64(values[affinity2].Int64())
-	bits[3] = uint64(values[affinity3].Int64())
+	bits := make([]int64, 4)
+	bits[0] = values[affinity0].Int64()
+	bits[1] = values[affinity1].Int64()
+	bits[2] = values[affinity2].Int64()
+	bits[3] = values[affinity3].Int64()
+	for _, bit := range bits {
+		if bit >= DCGM_FT_INT64_BLANK {
+			// Retrieved affinity value is invalid.
+			return "N/A", nil
+		}
+	}
 
-	b := bitset.From(bits)
+	ubits := make([]uint64, len(bits))
+	for i, val := range bits {
+		ubits[i] = uint64(val)
+	}
+	b := bitset.From(ubits)
 	str := convertBitsetStr(b.String())
 	return str, nil
 }

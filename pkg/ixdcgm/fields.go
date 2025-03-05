@@ -32,10 +32,6 @@ const (
 	defaultUpdateFreq     = 1000000 // usec
 	defaultMaxKeepAge     = 0       // sec
 	defaultMaxKeepSamples = 1       // Keep one sample by default since we only ask for latest
-
-	DCGM_INT32_BLANK = int32(2147483632)          // 0x7ffffff0
-	DCGM_INT64_BLANK = int64(9223372036854775792) // 0x7ffffffffffffff0
-	DCGM_FP64_BLANK  = float64(140737488355328.0)
 )
 
 type FieldGrpHandle struct{ handle C.dcgmFieldGrp_t }
@@ -104,21 +100,6 @@ func GetLatestValuesForFields(gpu uint, fields []Short) ([]FieldValue_v1, error)
 	return toFieldValue(values), nil
 }
 
-func toFieldValue(values []C.dcgmFieldValue_v1) (fields []FieldValue_v1) {
-	fields = make([]FieldValue_v1, len(values))
-	for i, v := range values {
-		fields[i] = FieldValue_v1{
-			Version:   uint(v.version),
-			FieldId:   uint(v.fieldId),
-			FieldType: uint(v.fieldType),
-			Status:    int(v.status),
-			Ts:        int64(v.ts),
-			Value:     v.value,
-		}
-	}
-	return
-}
-
 func GetFieldValueStr(fv FieldValue_v1, typ string) string {
 	st := fv.Status
 	if st != C.DCGM_ST_OK {
@@ -128,14 +109,14 @@ func GetFieldValueStr(fv FieldValue_v1, typ string) string {
 	switch typ {
 	case "int64":
 		value := *(*int64)(unsafe.Pointer(&fv.Value[0]))
-		if value >= DCGM_INT64_BLANK {
+		if value >= DCGM_FT_INT64_BLANK {
 			return "N/A" // indicate the field is not supported
 		}
 		return fmt.Sprintf("%d", value)
 
 	case "float64":
 		value := *(*float64)(unsafe.Pointer(&fv.Value[0]))
-		if value >= DCGM_FP64_BLANK {
+		if value >= DCGM_FT_FP64_BLANK {
 			return "N/A" // indicate the field is not supported
 		}
 		// sync the precision with the display of ixdcgmi
@@ -192,4 +173,36 @@ func (e Field_Entity_Group) String() string {
 		return "CPU Core"
 	}
 	return "unknown"
+}
+
+func toFieldValue(cfields []C.dcgmFieldValue_v1) []FieldValue_v1 {
+	fields := make([]FieldValue_v1, len(cfields))
+	for i, f := range cfields {
+		fields[i] = FieldValue_v1{
+			Version:   uint(f.version),
+			FieldId:   uint(f.fieldId),
+			FieldType: uint(f.fieldType),
+			Status:    int(f.status),
+			Ts:        int64(f.ts),
+			Value:     f.value,
+		}
+	}
+
+	return fields
+}
+
+func (fv FieldValue_v1) Int64() int64 {
+	return *(*int64)(unsafe.Pointer(&fv.Value[0]))
+}
+
+func (fv FieldValue_v1) Float64() float64 {
+	return *(*float64)(unsafe.Pointer(&fv.Value[0]))
+}
+
+func (fv FieldValue_v1) String() string {
+	return C.GoString((*C.char)(unsafe.Pointer(&fv.Value[0])))
+}
+
+func (fv FieldValue_v1) Blob() [4096]byte {
+	return fv.Value
 }
