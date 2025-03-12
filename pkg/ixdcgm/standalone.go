@@ -36,9 +36,9 @@ type standalone struct {
 }
 
 func (s *standalone) Shutdown() error {
-	result := C.dcgmStopEmbedded(handle.handle)
+	result := C.dcgmDisconnect(handle.handle)
 	if err := errorString(result); err != nil {
-		return fmt.Errorf("failed to stop embedded dcgm: %v", err)
+		return fmt.Errorf("Error disconnecting from ix-hostengine: %s", err)
 	}
 
 	result = C.dcgmShutdown()
