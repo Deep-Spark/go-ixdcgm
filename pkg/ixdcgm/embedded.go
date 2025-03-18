@@ -19,9 +19,6 @@ package ixdcgm
 
 /*
 #cgo linux LDFLAGS: -ldl -Wl,--export-dynamic -Wl,--unresolved-symbols=ignore-in-object-files
-
-#include <dlfcn.h>
-#include <stdlib.h>
 #include "include/dcgm_agent.h"
 #include "include/dcgm_structs.h"
 */
@@ -29,7 +26,6 @@ import "C"
 import "fmt"
 
 type embedded struct {
-	// TODO: implement embeded mode.
 }
 
 func (e *embedded) Shutdown() error {

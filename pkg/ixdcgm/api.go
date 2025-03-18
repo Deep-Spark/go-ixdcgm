@@ -17,53 +17,26 @@ limitations under the License.
 
 package ixdcgm
 
-/*
-#cgo LDFLAGS: -ldl
-
-#include <dlfcn.h>
-#include <stdlib.h>
-#include "include/dcgm_agent.h"
-#include "include/dcgm_structs.h"
-*/
 import "C"
 import (
 	"context"
 	"fmt"
 	"sync"
-	"unsafe"
 
 	_ "gitee.com/deep-spark/go-ixdcgm/pkg/ixdcgm/include"
 )
 
 var (
-	ixdcgmLibHandler  unsafe.Pointer
-	ixdcgmInitCounter int
-	mux               sync.Mutex
-	connection        Interface
-	handle            DcgmHandle
+	mux    sync.Mutex
+	handle DcgmHandle
 )
 
-// dynamic library path
-const (
-	ixdcgmLib = "libixdcgm.so"
-)
-
-func initIxDcgm(m int) (err error) {
-	lib := string2Char(ixdcgmLib)
-	defer freeCString(lib)
-
-	ixdcgmLibHandler = C.dlopen(lib, C.RTLD_LAZY|C.RTLD_GLOBAL)
-	if ixdcgmLibHandler == nil {
-		return fmt.Errorf("failed to load %s", ixdcgmLib)
-	}
-
-	connection, err = New(m)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
+// Init starts IXDCGM, based on the user selected mode
+// IXDCGM can be started in 3 differengt modes:
+// 1. Embedded: Start hostengine within this process
+// 2. Standalone: Connect to an already running ix-hostengine at the specified address
+// Connection address can be passed as command line args: -connect "IP:PORT/Socket" -socket "isSocket"
+// 3. StartHostengine: Open an Unix socket to start and connect to the ix-hostengine and terminate before exiting
 func Init(m int, args ...string) (cleanup func(), err error) {
 	mux.Lock()
 	defer mux.Unlock()
@@ -88,26 +61,6 @@ func Init(m int, args ...string) (cleanup func(), err error) {
 	ixdcgmInitCounter += 1
 
 	return cleanup, err
-}
-
-func shutdown() (err error) {
-	mux.Lock()
-	defer mux.Unlock()
-
-	if ixdcgmInitCounter <= 0 {
-		return fmt.Errorf("ixdcgm already shutdown")
-	}
-
-	if ixdcgmInitCounter == 1 {
-		err = connection.Shutdown()
-		if err != nil {
-			return err
-		}
-	}
-
-	C.dlclose(ixdcgmLibHandler)
-	ixdcgmInitCounter -= 1
-	return nil
 }
 
 func GetAllDeviceCount() (uint, error) {

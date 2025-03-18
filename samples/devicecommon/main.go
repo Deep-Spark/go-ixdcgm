@@ -25,8 +25,8 @@ import (
 )
 
 var (
-	connectAddr = flag.String("connectAddr", "0.0.0.0:5777", "DCGM connect address")
-	isSocket    = flag.String("socket", "0", "Connect to Unix socket")
+	connectAddr = flag.String("connect", "localhost:5777", "Provide ix-hostengine connection address.")
+	isSocket    = flag.String("socket", "0", "Connecting to Unix socket")
 )
 
 func main() {
