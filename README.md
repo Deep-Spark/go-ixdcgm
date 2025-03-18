@@ -3,7 +3,11 @@
 ## Introduction
 
 IXDCGM is a tool provided for monitoring and managing IX GPUs, offering a rich set of APIs to retrieve information about GPU status, performance, power consumption, and more.   
-Go-ixdcgm is a wrapper library for ixdcgm written in Go language, providing a simple set of functions that facilitate the easy invocation of ixdcgm's APIs.
+Go-IXDCGM is a wrapper library for IXDCGM written in Go language, providing a simple set of functions that facilitate the easy invocation of IXDCGM's APIs.
+
+**Note:** 
+- The runtime environment requires the library of **libixdcgm.so**, please install IXDCGM SDK firstly.
+- The current version of Go-IXDCGM is compatible with IX driver version **4.2.0**.
 
 ## Install
 
@@ -78,9 +82,34 @@ func main() {
 }
 ```
 
+## IXDCGM running modes
+IXDCGM can be run in three different ways.
+
+#### Embedded Mode
+In embedded mode, hostengine is started as part of the running process and is loaded as a shared library. In this mode, metrics are also updated and collected automatically. This mode is recommended for users who wants to avoid managing an autonomous hostengine.
+
+#### Standalone Mode
+This mode allows you to connect to a running hostengine using a specified TCP/IP or Unix socket address. It is recommended for remote connections to the hostengine. By default, IXDCGM assumes a TCP connection and attempts to connect to localhost:5777, unless specified otherwise.
+
+If the hostengine is running at a different address, pass it to `-connect`:
+- "IP" - A valid IP address for the remote hostengine, at port 5777.
+- "IP:PORT" - A valid IP address and port.
+
+The `-socket` parameter identifies whether the passed `-connect` address is a Unix socket filename (1) or a TCP/IP address (0):
+- "0" - The given address is a TCP/IP address.
+- "1" - The given address is a Unix socket filename.
+
+For example:
+```
+go run samples/devicecommon/main.go -connect "0.0.0.0:5777" -socket "0"
+```
+
+#### StartHostengine Mode
+This is an add-on mode which opens an Unix socket for starting and connecting with hostengine. The hostengine is started as a child process of the running process and automatically terminated on exit. When operating in this mode, make sure to stop an already running hostengine to avoid any connection address conflicts. This mode is recommended for safely integrating IXDCGM in an already existing setup.
+
 ## More Samples
 
-The `samples` folder contains more simple examples of how to use go-ixdcgm to call the ixdcgm API.
+The `samples` folder contains more simple examples of how to use go-ixdcgm to call the IXDCGM API.
 
 To get device information, run the following command:
 ```

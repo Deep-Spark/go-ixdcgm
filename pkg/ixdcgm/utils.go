@@ -30,6 +30,7 @@ package ixdcgm
 import "C"
 import (
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"unsafe"
@@ -173,4 +174,12 @@ func convertBitsetStr(input string) (output string) {
 	// Join the result into a single string
 	output = strings.Join(result, ",")
 	return
+}
+
+func parseDirPath(path string) (string, error) {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("Error to parse dir path %s, err: %v", path, err)
+	}
+	return absPath, nil
 }
