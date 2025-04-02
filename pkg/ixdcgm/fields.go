@@ -85,9 +85,32 @@ func WatchFields(gpuIds []uint, fieldGrp FieldGrpHandle, groupName string) (Grou
 	cWaitForUpdate := C.int(1)
 	res = C.dcgmUpdateAllFields(handle.handle, cWaitForUpdate)
 	if err = errorString(res); err != nil {
-		return GroupHandle{}, fmt.Errorf("error updating DCGM fields: %s", err)
+		return GroupHandle{}, fmt.Errorf("error updating all fields: %s", err)
 	}
 	return group, nil
+}
+
+func WatchFieldsWithGroupEx(
+	fieldsGroup FieldGrpHandle, group GroupHandle, updateFreq int64, maxKeepAge float64, maxKeepSamples int32,
+) error {
+	result := C.dcgmWatchFields(handle.handle, group.handle, fieldsGroup.handle,
+		C.longlong(updateFreq), C.double(maxKeepAge), C.int(maxKeepSamples))
+
+	if err := errorString(result); err != nil {
+		return fmt.Errorf("Error watching fields: %s", err)
+	}
+
+	cWaitForUpdate := C.int(1)
+	res := C.dcgmUpdateAllFields(handle.handle, cWaitForUpdate)
+	if err := errorString(res); err != nil {
+		return fmt.Errorf("error updating all fields: %s", err)
+	}
+
+	return nil
+}
+
+func WatchFieldsWithGroup(fieldsGroup FieldGrpHandle, group GroupHandle) error {
+	return WatchFieldsWithGroupEx(fieldsGroup, group, defaultUpdateFreq, defaultMaxKeepAge, defaultMaxKeepSamples)
 }
 
 func GetLatestValuesForFields(gpu uint, fields []Short) ([]FieldValue_v1, error) {

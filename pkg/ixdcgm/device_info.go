@@ -24,6 +24,7 @@ package ixdcgm
 import "C"
 import (
 	"fmt"
+	"math/rand"
 	"unsafe"
 
 	"github.com/bits-and-blooms/bitset"
@@ -247,14 +248,14 @@ func getAffinity(gpuId uint, typ string) (result string, err error) {
 		return "N/A", fmt.Errorf("not supported affinity type: %s", typ)
 	}
 
-	fieldGrpName := fmt.Sprintf("%sAffFields%d", typ, gpuId)
+	fieldGrpName := fmt.Sprintf("%sAffFields%d", typ, rand.Uint64())
 	fieldGrpHdl, err := FieldGroupCreate(fieldGrpName, affFields)
 	if err != nil {
 		return "N/A", err
 	}
 	defer FieldGroupDestroy(fieldGrpHdl)
 
-	gpuGrpName := fmt.Sprintf("%sAff%d", typ, gpuId)
+	gpuGrpName := fmt.Sprintf("%sAff%d", typ, rand.Uint64())
 	gpuGrpHdl, err := WatchFields([]uint{gpuId}, fieldGrpHdl, gpuGrpName)
 	if err != nil {
 		return "N/A", err
