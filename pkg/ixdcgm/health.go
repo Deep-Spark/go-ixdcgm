@@ -51,8 +51,8 @@ func HealthSet(groupId GroupHandle, systems HealthSystem) (err error) {
 		version:        C.dcgmHealthSetParams_version2,
 		groupId:        groupId.handle,
 		systems:        C.dcgmHealthSystems_t(systems),
-		updateInterval: C.longlong(int64(100000)), // How often to query the underlying health information from the driver in usecs.
-		maxKeepAge:     C.double(float64(1)),      // How long to keep data cached for this field in seconds.
+		updateInterval: C.longlong(int64(30 * 1000000)), // How often to query the underlying health information from the driver in usecs.
+		maxKeepAge:     C.double(float64(600)),          // How long to keep data cached for this field in seconds.
 	}
 
 	result := C.dcgmHealthSet_v2(handle.handle, &params_v2)
