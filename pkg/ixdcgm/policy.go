@@ -23,8 +23,8 @@ package ixdcgm
 #include "include/dcgm_structs.h"
 
 // wrapper for go callback function
-extern int violationNotify(void* p);
-extern int voidCallback(void* p);
+extern int violationPolicyNotify(void* p);
+extern int voidPolicyCallback(void* p);
 */
 import "C"
 import (
@@ -334,8 +334,8 @@ func registerPolicy(ctx context.Context, groupId GroupHandle, params *PolicyCond
 	log.Println("Listening for violations...")
 	result := C.dcgmPolicyRegister(handle.handle, groupId.handle,
 		C.dcgmPolicyCondition_t(condition),
-		C.fpRecvUpdates(C.violationNotify),
-		C.fpRecvUpdates(C.voidCallback),
+		C.fpRecvUpdates(C.violationPolicyNotify),
+		C.fpRecvUpdates(C.voidPolicyCallback),
 	)
 	if err = errorString(result); err != nil {
 		return nil, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
@@ -409,17 +409,17 @@ func dbeLocation(location int) string {
 	return "N/A"
 }
 
-// VoidCallback is a go callback function for dcgmPolicyRegister() wrapped in C.voidCallback()
+// VoidPolicyCallback is a go callback function for dcgmPolicyRegister() wrapped in C.voidPolicyCallback()
 //
-//export VoidCallback
-func VoidCallback(data unsafe.Pointer) int {
+//export VoidPolicyCallback
+func VoidPolicyCallback(data unsafe.Pointer) int {
 	return 0
 }
 
-// ViolationRegistration is a go callback function for dcgmPolicyRegister() wrapped in C.violationNotify()
+// ViolationPolicyRegistration is a go callback function for dcgmPolicyRegister() wrapped in C.violationPolicyNotify()
 //
-//export ViolationRegistration
-func ViolationRegistration(data unsafe.Pointer) int {
+//export ViolationPolicyRegistration
+func ViolationPolicyRegistration(data unsafe.Pointer) int {
 	// log.Println("A policy violation is coming ...")
 	var con policyCondition
 	var timestamp time.Time

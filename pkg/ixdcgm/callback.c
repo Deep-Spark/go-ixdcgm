@@ -1,11 +1,11 @@
-int violationNotify(void *p)
+int violationPolicyNotify(void *p)
 {
-    int ViolationRegistration(void *);
-    return ViolationRegistration(p);
+    int ViolationPolicyRegistration(void *);
+    return ViolationPolicyRegistration(p);
 }
 
-int voidCallback(void *p)
+int voidPolicyCallback(void *p)
 {
-    int VoidCallback(void *);
-    return VoidCallback(p);
+    int VoidPolicyCallback(void *);
+    return VoidPolicyCallback(p);
 }
