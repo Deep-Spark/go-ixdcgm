@@ -49,6 +49,7 @@ func main() {
 		ThermalPolicyThreshold: 60, // °C
 		PowerPolicyEnabled:     true,
 		PowerPolicyThreshold:   250, // W
+		XidPolicyEnabled:       true,
 	}
 
 	// Monitor policy violations for all GPUs
@@ -64,7 +65,7 @@ func main() {
 	for {
 		select {
 		case pe := <-ch:
-			fmt.Printf("PolicyViolation : %v\nTimestamp       : %v\nData            : %v\n",
+			fmt.Printf("PolicyViolation : %v\nTimestamp       : %v\nData            : %+v\n",
 				pe.Condition, pe.Timestamp, pe.Data)
 		case <-ctx.Done():
 			// Sleep to ensure the ixdcgm policy is unregistered before cleanup.

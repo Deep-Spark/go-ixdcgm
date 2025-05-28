@@ -73,6 +73,9 @@ type PolicyConditionParams struct {
 	// Note that the PowerPolicyThreshold will be ignored if PowerPolicy is fadisabledlse.
 	// Default value is 250 and the unit is in watts (W).
 	PowerPolicyThreshold uint32 `default:"250"`
+
+	// XidPolicyEnabled indicates whether the XidPolicy is enabled. Default is false (disabled).
+	XidPolicyEnabled bool `default:"false"`
 }
 
 type policyCondition string
@@ -83,6 +86,7 @@ const (
 	MaxRtPgPolicy = policyCondition("Max Retired Pages Limit")
 	ThermalPolicy = policyCondition("Thermal Limit")
 	PowerPolicy   = policyCondition("Power Limit")
+	XidPolicy     = policyCondition("XID Error")
 )
 
 type PolicyViolation struct {
@@ -99,6 +103,7 @@ const (
 	maxRtPgPolicyIndex
 	thermalPolicyIndex
 	powerPolicyIndex
+	xidPolicyIndex
 )
 
 type policyConditionParam struct {
@@ -106,26 +111,56 @@ type policyConditionParam struct {
 	value uint32
 }
 
+// DbePolicyCondition contains details about a Double-bit ECC error
 type DbePolicyCondition struct {
-	Location  string
+	// Location specifies where the ECC error occurred
+	Location string
+	// NumErrors indicates the number of errors detected
 	NumErrors uint
+	// GpuId indicates the GPU which violated the policy
+	GpuId uint
 }
 
+// PciPolicyCondition contains details about a PCI error
 type PciPolicyCondition struct {
+	// ReplayCounter indicates the number of PCI replays
 	ReplayCounter uint
+	// GpuId indicates the GPU which violated the policy
+	GpuId uint
 }
 
+// RetiredPagesPolicyCondition contains details about retired memory pages
 type RetiredPagesPolicyCondition struct {
+	// SbePages indicates the number of pages retired due to single-bit errors
 	SbePages uint
+	// DbePages indicates the number of pages retired due to double-bit errors
 	DbePages uint
+	// GpuId indicates the GPU which violated the policy
+	GpuId uint
 }
 
+// ThermalPolicyCondition contains details about a thermal violation
 type ThermalPolicyCondition struct {
+	// ThermalViolation indicates the severity of the thermal violation
 	ThermalViolation uint
+	// GpuId indicates the GPU which violated the policy
+	GpuId uint
 }
 
+// PowerPolicyCondition contains details about a power violation
 type PowerPolicyCondition struct {
+	// PowerViolation indicates the severity of the power violation
 	PowerViolation uint
+	// GpuId indicates the GPU which violated the policy
+	GpuId uint
+}
+
+// XidPolicyCondition contains details about an XID error
+type XidPolicyCondition struct {
+	// ErrNum is the XID error number
+	ErrNum uint
+	// GpuId indicates the GPU which violated the policy
+	GpuId uint
 }
 
 var (
@@ -153,6 +188,7 @@ func makePolicyChannels(gpuCnt int) {
 		callbacks["maxrtpg"] = make(chan PolicyViolation, policyChanCap)
 		callbacks["thermal"] = make(chan PolicyViolation, policyChanCap)
 		callbacks["power"] = make(chan PolicyViolation, policyChanCap)
+		callbacks["xid"] = make(chan PolicyViolation, policyChanCap)
 
 		conChanLcks = make(map[string]*sync.Mutex)
 		conChanLcks["dbe"] = &sync.Mutex{}
@@ -160,6 +196,7 @@ func makePolicyChannels(gpuCnt int) {
 		conChanLcks["maxrtpg"] = &sync.Mutex{}
 		conChanLcks["thermal"] = &sync.Mutex{}
 		conChanLcks["power"] = &sync.Mutex{}
+		conChanLcks["xid"] = &sync.Mutex{}
 	})
 }
 
@@ -198,6 +235,10 @@ func makePolicyParamsMap(params *PolicyConditionParams) {
 			value: params.PowerPolicyThreshold,
 		}
 
+		paramMap[xidPolicyIndex] = policyConditionParam{
+			typ:   policyFieldTypeBool,
+			value: policyBoolValue,
+		}
 	})
 }
 
@@ -243,7 +284,7 @@ func validatePolicy(p *PolicyConditionParams) error {
 	if err := defaults.Set(p); err != nil {
 		return err
 	}
-	if !(p.DbePolicyEnabled || p.PCIePolicyEnabled || p.MaxRtPgPolicyEnabled || p.ThermalPolicyEnabled || p.PowerPolicyEnabled) {
+	if !(p.DbePolicyEnabled || p.PCIePolicyEnabled || p.MaxRtPgPolicyEnabled || p.ThermalPolicyEnabled || p.PowerPolicyEnabled || p.XidPolicyEnabled) {
 		return fmt.Errorf("bad parameters: at least one policy must be enabled")
 	}
 	return nil
@@ -326,6 +367,11 @@ func registerPolicy(ctx context.Context, groupId GroupHandle, params *PolicyCond
 		paramKeys = append(paramKeys, powerPolicyIndex)
 		condition |= C.DCGM_POLICY_COND_POWER
 	}
+	if params.XidPolicyEnabled {
+		conTypes++
+		paramKeys = append(paramKeys, xidPolicyIndex)
+		condition |= C.DCGM_POLICY_COND_XID
+	}
 
 	if err = setPolicy(groupId, condition, paramKeys); err != nil {
 		return nil, err
@@ -370,6 +416,8 @@ func registerPolicy(ctx context.Context, groupId GroupHandle, params *PolicyCond
 				violation <- thermal
 			case power := <-callbacks["power"]:
 				violation <- power
+			case xid := <-callbacks["xid"]:
+				violation <- xid
 			case <-ctx.Done():
 				return
 			}
@@ -435,6 +483,7 @@ func ViolationPolicyRegistration(data unsafe.Pointer) int {
 		val = DbePolicyCondition{
 			Location:  dbeLocation(int(dbe.location)),
 			NumErrors: *uintPtr(dbe.numerrors),
+			GpuId:     uint(response.gpuId),
 		}
 	case C.DCGM_POLICY_COND_PCI:
 		pci := (*C.dcgmPolicyConditionPci_t)(unsafe.Pointer(&response.val))
@@ -442,6 +491,7 @@ func ViolationPolicyRegistration(data unsafe.Pointer) int {
 		timestamp = createTimeStamp(pci.timestamp)
 		val = PciPolicyCondition{
 			ReplayCounter: *uintPtr(pci.counter),
+			GpuId:         uint(response.gpuId),
 		}
 	case C.DCGM_POLICY_COND_MAX_PAGES_RETIRED:
 		mpr := (*C.dcgmPolicyConditionMpr_t)(unsafe.Pointer(&response.val))
@@ -450,6 +500,7 @@ func ViolationPolicyRegistration(data unsafe.Pointer) int {
 		val = RetiredPagesPolicyCondition{
 			SbePages: *uintPtr(mpr.sbepages),
 			DbePages: *uintPtr(mpr.dbepages),
+			GpuId:    uint(response.gpuId),
 		}
 	case C.DCGM_POLICY_COND_THERMAL:
 		thermal := (*C.dcgmPolicyConditionThermal_t)(unsafe.Pointer(&response.val))
@@ -457,6 +508,7 @@ func ViolationPolicyRegistration(data unsafe.Pointer) int {
 		timestamp = createTimeStamp(thermal.timestamp)
 		val = ThermalPolicyCondition{
 			ThermalViolation: *uintPtr(thermal.thermalViolation),
+			GpuId:            uint(response.gpuId),
 		}
 	case C.DCGM_POLICY_COND_POWER:
 		pwr := (*C.dcgmPolicyConditionPower_t)(unsafe.Pointer(&response.val))
@@ -464,6 +516,15 @@ func ViolationPolicyRegistration(data unsafe.Pointer) int {
 		timestamp = createTimeStamp(pwr.timestamp)
 		val = PowerPolicyCondition{
 			PowerViolation: *uintPtr(pwr.powerViolation),
+			GpuId:          uint(response.gpuId),
+		}
+	case C.DCGM_POLICY_COND_XID:
+		xid := (*C.dcgmPolicyConditionXID_t)(unsafe.Pointer(&response.val))
+		con = XidPolicy
+		timestamp = createTimeStamp(xid.timestamp)
+		val = XidPolicyCondition{
+			ErrNum: *uintPtr(xid.errnum),
+			GpuId:  uint(response.gpuId),
 		}
 	}
 
@@ -484,6 +545,8 @@ func ViolationPolicyRegistration(data unsafe.Pointer) int {
 		writeToCallbacks("thermal", err)
 	case PowerPolicy:
 		writeToCallbacks("power", err)
+	case XidPolicy:
+		writeToCallbacks("xid", err)
 	}
 	return 0
 }
