@@ -1883,20 +1883,41 @@ extern "C"
         } val;
     } dcgmPolicyCallbackResponse_v1;
 
+    typedef struct
+    {
+        // version must always be first
+        unsigned int version; //!< version number (dcgmPolicyCallbackResponse_version)
+
+        dcgmPolicyCondition_t condition; //!< Condition that was violated
+        union
+        {
+            dcgmPolicyConditionDbe_t dbe;         //!< ECC DBE return structure
+            dcgmPolicyConditionPci_t pci;         //!< PCI replay error return structure
+            dcgmPolicyConditionMpr_t mpr;         //!< Max retired pages limit return structure
+            dcgmPolicyConditionThermal_t thermal; //!< Thermal policy violations return structure
+            dcgmPolicyConditionPower_t power;     //!< Power policy violations return structure
+            dcgmPolicyConditionNvlink_t nvlink;   //!< Nvlink policy violations return structure
+            dcgmPolicyConditionXID_t xid;         //!< XID policy violations return structure
+        } val;
+
+        unsigned int gpuId; //!< GPU ID of GPU which violated the policy.
+    } dcgmPolicyCallbackResponse_v2;
+
     /**
-     * Typedef for \ref dcgmPolicyCallbackResponse_v1
+     * Typedef for \ref dcgmPolicyCallbackResponse_v2
      */
-    typedef dcgmPolicyCallbackResponse_v1 dcgmPolicyCallbackResponse_t;
+    typedef dcgmPolicyCallbackResponse_v2 dcgmPolicyCallbackResponse_t;
+
 
 /**
- * Version 1 for \ref dcgmPolicyCallbackResponse_v1
+ * Version 2 for \ref dcgmPolicyCallbackResponse_v2
  */
-#define dcgmPolicyCallbackResponse_version1 MAKE_DCGM_VERSION(dcgmPolicyCallbackResponse_v1, 1)
+#define dcgmPolicyCallbackResponse_version2 MAKE_DCGM_VERSION(dcgmPolicyCallbackResponse_v2, 2)
 
 /**
  * Latest version for \ref dcgmPolicyCallbackResponse_t
  */
-#define dcgmPolicyCallbackResponse_version dcgmPolicyCallbackResponse_version1
+#define dcgmPolicyCallbackResponse_version dcgmPolicyCallbackResponse_version2
 
 /**
  * Set above size of largest blob entry. Currently this is dcgmDeviceVgpuTypeInfo_v1
