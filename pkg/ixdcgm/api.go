@@ -116,3 +116,8 @@ func ListenForPolicyViolationsForAllGPUs(ctx context.Context, params *PolicyCond
 func ListenForPolicyViolationsForGPUs(ctx context.Context, params *PolicyConditionParams, gpuIds ...uint) (<-chan PolicyViolation, error) {
 	return registerPolicyForGpus(ctx, params, gpuIds...)
 }
+
+// Introspect returns IxDCGM hostengine memory and CPU usage
+func Introspect() (IxDcgmStatus, error) {
+	return introspect()
+}

@@ -268,6 +268,16 @@ GPU: 0
 
 ```
 
+To get hostengine status, run the following command:
+```
+$ go run samples/hostengine_status/main.go
+
+# sample output
+
+Memory  : 12072 KB
+CPU     : 0.00 %
+```
+
 ## License
 
 Copyright (c) 2024 Iluvatar CoreX. All rights reserved. This project has an Apache-2.0 license, as

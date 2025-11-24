@@ -79,6 +79,7 @@ type DeviceStatus struct {
 	FanSpeed     string // "N/A" or int64 str, %
 	EccSbeVolDev string // "N/A" or int64 str, 1 for errors occurred, 0 for no errors
 	EccDbeVolDev string // "N/A" or int64 str, 1 for errors occurred, 0 for no errors
+	XidErrors    int64  // 0 for no errors
 }
 
 type DeviceProfStatus struct {
@@ -104,6 +105,7 @@ func getDeviceStatus(gpuId uint) (status DeviceStatus, err error) {
 		IdxMemTotal
 		IdxMemUsed
 		IdxMemFree
+		IdxXidErrors
 	)
 
 	fields := []Short{
@@ -122,6 +124,7 @@ func getDeviceStatus(gpuId uint) (status DeviceStatus, err error) {
 		DCGM_FI_DEV_FB_TOTAL,
 		DCGM_FI_DEV_FB_USED,
 		DCGM_FI_DEV_FB_FREE,
+		DCGM_FI_DEV_XID_ERRORS,
 	}
 
 	fieldGrpName := fmt.Sprintf("devStatusFields%d", rand.Uint64())
@@ -177,6 +180,7 @@ func getDeviceStatus(gpuId uint) (status DeviceStatus, err error) {
 		FanSpeed:     GetFieldValueStr(values[IdxFanSpeed], "int64"),
 		EccSbeVolDev: GetFieldValueStr(values[IdxEccSbeVolDev], "int64"),
 		EccDbeVolDev: GetFieldValueStr(values[IdxEccDbeVolDev], "int64"),
+		XidErrors:    values[IdxXidErrors].Int64(),
 	}
 
 	_ = FieldGroupDestroy(fieldGrp)
