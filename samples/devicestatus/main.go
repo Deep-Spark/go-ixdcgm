@@ -66,6 +66,7 @@ func main() {
 		fmt.Printf("Total Memory (MB)      : %d\n", st.MemUsage.Total)
 		fmt.Printf("Used Memory (MB)       : %d\n", st.MemUsage.Used)
 		fmt.Printf("Free Memory (MB)       : %d\n", st.MemUsage.Free)
+		fmt.Printf("Xid Errors             : %d\n", st.XidErrors)
 		fmt.Printf("SmActive               : %s\n", pst.SmActive)
 		fmt.Printf("SmOccupancy            : %s\n", pst.SmOccupancy)
 		fmt.Printf("DramActive             : %s\n", pst.DramActive)

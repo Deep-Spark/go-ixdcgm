@@ -94,6 +94,16 @@ func ixdcgmErrorString(result C.ixdcgmReturn_t) error {
 	return fmt.Errorf("%v", err)
 }
 
+func toInt64(c C.longlong) int64 {
+	i := int64(c)
+	return i
+}
+
+func dblToFloat(val C.double) *float64 {
+	i := float64(val)
+	return &i
+}
+
 func string2Char(c string) *C.char {
 	return C.CString(c)
 }
