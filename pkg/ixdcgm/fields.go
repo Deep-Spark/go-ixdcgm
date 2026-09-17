@@ -31,7 +31,7 @@ import (
 const (
 	defaultUpdateFreq     = 1000000 // usec
 	defaultMaxKeepAge     = 0       // sec
-	defaultMaxKeepSamples = 1       // Keep one sample by default since we only ask for latest
+	defaultMaxKeepSamples = 5       // Keep five samples by default since we only ask for latest
 )
 
 type FieldGrpHandle struct{ handle C.dcgmFieldGrp_t }
@@ -80,12 +80,6 @@ func WatchFields(gpuIds []uint, fieldGrp FieldGrpHandle, groupName string) (Grou
 		C.int(defaultMaxKeepSamples))
 	if err = errorString(res); err != nil {
 		return GroupHandle{}, fmt.Errorf("error watching DCGM fields: %s", err)
-	}
-
-	cWaitForUpdate := C.int(1)
-	res = C.dcgmUpdateAllFields(handle.handle, cWaitForUpdate)
-	if err = errorString(res); err != nil {
-		return GroupHandle{}, fmt.Errorf("error updating all fields: %s", err)
 	}
 	return group, nil
 }

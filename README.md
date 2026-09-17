@@ -144,26 +144,92 @@ $ go run samples/devicestatus/main.go
 
 # sample output
 
-GPUId                  : 1
-Power Usage (W)        : 150.000
-Temperature (°C)       : 68
-FanSpeed (%)           : N/A
-Utilization.GPU (%)    : 85
-Utilization.Mem (%)    : 78
-Clocks.Cores (MHz)     : 1750
+GPU Id                 : 0
+GPU Power Usage (W)    : 13.000
+GPU Temperature (°C)   : 22
+Mem Temperature (°C)   : 21
+FanSpeed (%)          : N/A
+Utilization.GPU (%)   : 0
+Utilization.Mem (%)   : 1
+Clocks.Cores (MHz)     : 500
 Clocks.Mem (MHz)       : 1600
 EccSdbVolDev           : 0
 EccDdbVolDev           : 0
-PCI.Tx (MB/s)          : 107
-PCI.Rx (MB/s)          : 92544
-PCI.ReplayCounter      : 0
+PCI.Tx (MB/s)          : 0
+PCI.Rx (MB/s)          : 0
 Total Memory (MB)      : 32768
-Used Memory (MB)       : 25500
-Free Memory (MB)       : 7268
-SmActive               : 0.792
-SmOccupancy            : 0.222
-DramActive             : 0.622
+Used Memory (MB)       : 68
+Free Memory (MB)       : 32700
+Xid Errors             : 0
+SmActive               : 0.000
+SmOccupancy            : 0.000
+DramActive             : 0.000
+TensorActive           : 0.000
 -------------------------------------------
+```
+
+To get device IXLINK status, run the following command:
+```
+$ go run samples/deviceixlinkstatus/main.go
+
+# sample output
+
+Global IXLink status: gpu_entries=16 nvswitch_entries=0
+DeviceIxlinkSupported  : true
+===========================================
+GPUId                  : 0
+IXLINK LinkState       : up=0 down=6 disabled=0 unsupported=0
+IXLINK Supported       : true
+ixlink_bad_dllp_error_count_l0    : 2
+ixlink_bad_dllp_error_count_l1    : 3
+ixlink_bad_dllp_error_count_l2    : 2
+ixlink_bad_dllp_error_count_l3    : 0
+ixlink_bad_dllp_error_count_l4    : 0
+ixlink_bad_dllp_error_count_l5    : 0
+ixlink_bad_tlp_error_count_l0     : 10
+ixlink_bad_tlp_error_count_l1     : 10
+ixlink_bad_tlp_error_count_l2     : 3
+ixlink_bad_tlp_error_count_l3     : 1
+ixlink_bad_tlp_error_count_l4     : 2
+ixlink_bad_tlp_error_count_l5     : 3
+ixlink_completion_timeout_error_count_l0: 0
+ixlink_completion_timeout_error_count_l1: 0
+ixlink_completion_timeout_error_count_l2: 0
+ixlink_completion_timeout_error_count_l3: 0
+ixlink_completion_timeout_error_count_l4: 0
+ixlink_completion_timeout_error_count_l5: 0
+ixlink_ecrc_error_count_l0        : 0
+ixlink_ecrc_error_count_l1        : 0
+ixlink_ecrc_error_count_l2        : 0
+ixlink_ecrc_error_count_l3        : 0
+ixlink_ecrc_error_count_l4        : 0
+ixlink_ecrc_error_count_l5        : 0
+ixlink_lcrc_error_count_l0        : 5
+ixlink_lcrc_error_count_l1        : 4
+ixlink_lcrc_error_count_l2        : 0
+ixlink_lcrc_error_count_l3        : 1
+ixlink_lcrc_error_count_l4        : 0
+ixlink_lcrc_error_count_l5        : 1
+ixlink_replay_timeout_error_count_l0: 0
+ixlink_replay_timeout_error_count_l1: 0
+ixlink_replay_timeout_error_count_l2: 0
+ixlink_replay_timeout_error_count_l3: 0
+ixlink_replay_timeout_error_count_l4: 0
+ixlink_replay_timeout_error_count_l5: 0
+ixlink_retry_tlp_error_count_l0   : 1
+ixlink_retry_tlp_error_count_l1   : 0
+ixlink_retry_tlp_error_count_l2   : 0
+ixlink_retry_tlp_error_count_l3   : 0
+ixlink_retry_tlp_error_count_l4   : 0
+ixlink_retry_tlp_error_count_l5   : 0
+ixlink_rx_recovery_error_count_l0 : 1
+ixlink_rx_recovery_error_count_l1 : 0
+ixlink_rx_recovery_error_count_l2 : 0
+ixlink_rx_recovery_error_count_l3 : 0
+ixlink_rx_recovery_error_count_l4 : 0
+ixlink_rx_recovery_error_count_l5 : 0
+...
+
 ```
 
 To get running process information of device, run the following command:

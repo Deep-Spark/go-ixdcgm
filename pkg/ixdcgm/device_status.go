@@ -66,9 +66,10 @@ type MemoryUsage struct {
 }
 
 type DeviceStatus struct {
-	Id          uint
-	Power       string // "N/A" or float64 str, W
-	Temperature string // "N/A" or int64 str, °C
+	Id             uint
+	Power          string // "N/A" or float64 str, W
+	GpuTemperature string // "N/A" or int64 str, °C
+	MemTemperature string // "N/A" or int64 str, °C
 
 	Utilization UtilizationInfo
 	Clocks      ClockInfo
@@ -77,21 +78,23 @@ type DeviceStatus struct {
 	MemUsage    MemoryUsage
 
 	FanSpeed     string // "N/A" or int64 str, %
-	EccSbeVolDev string // "N/A" or int64 str, 1 for errors occurred, 0 for no errors
-	EccDbeVolDev string // "N/A" or int64 str, 1 for errors occurred, 0 for no errors
+	EccSbeVolDev string // "N/A" or int64 str, device-memory single-bit volatile ECC error counter
+	EccDbeVolDev string // "N/A" or int64 str, device-memory double-bit volatile ECC error counter
 	XidErrors    int64  // 0 for no errors
 }
 
 type DeviceProfStatus struct {
-	SmActive    string // "N/A" or float64 str, %
-	SmOccupancy string // "N/A" or float64 str, %
-	DramActive  string // "N/A" or float64 str, %
+	SmActive     string // "N/A" or float64 str, %
+	SmOccupancy  string // "N/A" or float64 str, %
+	DramActive   string // "N/A" or float64 str, %
+	TensorActive string // "N/A" or float64 str, %
 }
 
 func getDeviceStatus(gpuId uint) (status DeviceStatus, err error) {
 	const (
 		IdxPower int = iota
 		IdxGpuTemp
+		IdxMemTemp
 		IdxGpuUtil
 		IdxMemUtil
 		IdxSmClock
@@ -111,6 +114,7 @@ func getDeviceStatus(gpuId uint) (status DeviceStatus, err error) {
 	fields := []Short{
 		DCGM_FI_DEV_POWER_USAGE,
 		DCGM_FI_DEV_GPU_TEMP,
+		DCGM_FI_DEV_MEMORY_TEMP,
 		DCGM_FI_DEV_GPU_UTIL,
 		DCGM_FI_DEV_MEM_COPY_UTIL,
 		DCGM_FI_DEV_SM_CLOCK,
@@ -170,17 +174,18 @@ func getDeviceStatus(gpuId uint) (status DeviceStatus, err error) {
 	}
 
 	status = DeviceStatus{
-		Id:           gpuId,
-		Power:        GetFieldValueStr(values[IdxPower], "float64"),
-		Temperature:  GetFieldValueStr(values[IdxGpuTemp], "int64"),
-		Utilization:  utilInfo,
-		Clocks:       clocks,
-		PCI:          pciInfo,
-		MemUsage:     memUsage,
-		FanSpeed:     GetFieldValueStr(values[IdxFanSpeed], "int64"),
-		EccSbeVolDev: GetFieldValueStr(values[IdxEccSbeVolDev], "int64"),
-		EccDbeVolDev: GetFieldValueStr(values[IdxEccDbeVolDev], "int64"),
-		XidErrors:    values[IdxXidErrors].Int64(),
+		Id:             gpuId,
+		Power:          GetFieldValueStr(values[IdxPower], "float64"),
+		GpuTemperature: GetFieldValueStr(values[IdxGpuTemp], "int64"),
+		MemTemperature: GetFieldValueStr(values[IdxMemTemp], "int64"),
+		Utilization:    utilInfo,
+		Clocks:         clocks,
+		PCI:            pciInfo,
+		MemUsage:       memUsage,
+		FanSpeed:       GetFieldValueStr(values[IdxFanSpeed], "int64"),
+		EccSbeVolDev:   GetFieldValueStr(values[IdxEccSbeVolDev], "int64"),
+		EccDbeVolDev:   GetFieldValueStr(values[IdxEccDbeVolDev], "int64"),
+		XidErrors:      values[IdxXidErrors].Int64(),
 	}
 
 	_ = FieldGroupDestroy(fieldGrp)
@@ -193,12 +198,14 @@ func getDeviceProfStatus(gpuId uint) (status DeviceProfStatus, err error) {
 		IdxSmActive int = iota
 		IdxSmOccupancy
 		IdxDramActive
+		IdxTensorActive
 	)
 
 	fields := []Short{
 		DCGM_FI_PROF_SM_ACTIVE,
 		DCGM_FI_PROF_SM_OCCUPANCY,
 		DCGM_FI_PROF_DRAM_ACTIVE,
+		DCGM_FI_PROF_PIPE_TENSOR_ACTIVE,
 	}
 
 	fieldGrpName := fmt.Sprintf("devProfStatusFields%d", rand.Uint64())
@@ -223,9 +230,10 @@ func getDeviceProfStatus(gpuId uint) (status DeviceProfStatus, err error) {
 	}
 
 	status = DeviceProfStatus{
-		SmActive:    GetFieldValueStr(values[IdxSmActive], "float64"),
-		SmOccupancy: GetFieldValueStr(values[IdxSmOccupancy], "float64"),
-		DramActive:  GetFieldValueStr(values[IdxDramActive], "float64"),
+		SmActive:     GetFieldValueStr(values[IdxSmActive], "float64"),
+		SmOccupancy:  GetFieldValueStr(values[IdxSmOccupancy], "float64"),
+		DramActive:   GetFieldValueStr(values[IdxDramActive], "float64"),
+		TensorActive: GetFieldValueStr(values[IdxTensorActive], "float64"),
 	}
 
 	_ = FieldGroupDestroy(fieldGrp)
