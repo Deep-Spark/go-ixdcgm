@@ -64,6 +64,8 @@ extern "C"
 
     IXDCGM_PUBLIC_API const char *ixdcgmErrorString(ixdcgmReturn_t result);
 
+    ixdcgmReturn_t IXDCGM_PUBLIC_API ixdcgmGetLinkStatus(ixdcgmHandle_t pixdcgmHandle, ixdcgmLinkStatus_v3* linkStatus);
+
 #ifdef __cplusplus
 }
 #endif

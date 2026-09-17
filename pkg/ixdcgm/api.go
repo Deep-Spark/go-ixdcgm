@@ -81,9 +81,39 @@ func GetDeviceStatus(gpuId uint) (DeviceStatus, error) {
 	return getDeviceStatus(gpuId)
 }
 
-// GetDeviceProfStatus monitors GPM info including SM_ACTIVE, SM_OCCUPANCY and DRAM_ACTIVE
+// GetDeviceProfStatus monitors GPM info including SM_ACTIVE, SM_OCCUPANCY, DRAM_ACTIVE and PIPE_TENSOR_ACTIVE
 func GetDeviceProfStatus(gpuId uint) (DeviceProfStatus, error) {
 	return getDeviceProfStatus(gpuId)
+}
+
+// GetDeviceIxlinkErrorStatus monitors IXLINK error counters for the given GPU.
+func GetDeviceIxlinkErrorStatus(gpuId uint) (IxlinkErrorStatus, bool, error) {
+	return getDeviceIxlinkErrorStatus(gpuId)
+}
+
+// NewIxlinkErrorGather creates a reusable IXLink error gatherer for the given GPU.
+func NewIxlinkErrorGather(gpuId uint) (*IxlinkErrorGather, bool, error) {
+	return newIxlinkErrorGather(gpuId)
+}
+
+// NewIxlinkErrorGatherForGPUs creates a reusable IXLink error gatherer for the given GPUs.
+func NewIxlinkErrorGatherForGPUs(gpuIds []uint) (*IxlinkErrorGather, bool, error) {
+	return newIxlinkErrorGatherForGPUs(gpuIds)
+}
+
+// DeviceIxlinkSupported checks if IXLink is supported on the current system.
+func DeviceIxlinkSupported() (supported bool) {
+	return deviceIxlinkSupported()
+}
+
+// GetIxlinkStatus gets IXLink link states for GPUs and NvSwitches.
+func GetIxlinkStatus() (IxlinkStatus, error) {
+	return getIxlinkStatus()
+}
+
+// GetDeviceIxlinkStatus gets IXLink link states for the given GPU.
+func GetDeviceIxlinkStatus(gpuId uint) (status IxlinkGpuLinkStatus, found bool, err error) {
+	return getDeviceIxlinkGpuStatus(gpuId)
 }
 
 // GetDeviceRunningProcess get the running process infos for the given gpu id

@@ -75,4 +75,42 @@ typedef enum ixdcgmReturn_enum
 
 typedef uintptr_t ixdcgmHandle_t; //!< Identifier for ixDCGM Handle
 
+typedef enum ixdcgmLinkState_enum
+{
+    ixdcgmLinkStateNotSupported = 0,  //!< Link is unsupported by this GPU (Default for GPUs)
+    ixdcgmLinkStateDisabled     = 1,  //!< Link is supported for this link but this link is disabled
+    ixdcgmLinkStateDown         = 2,  //!< This Link link is down (inactive)
+    ixdcgmLinkStateUp           = 3   //!< This Link link is up (active)
+} ixdcgmLinkState_t;
+
+#define IXDCGM_MAX_LINKS_PER_GPU 18
+#define IXDCGM_MAX_NUM_SWITCHES 12
+#define IXDCGM_MAX_LINKS_PER_SWITCH 64
+#define IXDCGM_MAX_NUM_DEVICES 32
+
+typedef unsigned int ixdcgm_field_eid_t;
+
+typedef struct
+{
+    ixdcgm_field_eid_t entityId;                             //!< Entity ID of the GPU (gpuId)
+    ixdcgmLinkState_t  linkState[IXDCGM_MAX_LINKS_PER_GPU];  //!< Per-GPU link states
+} ixdcgmLinkGpuLinkStatus_v3;
+
+typedef struct
+{
+    ixdcgm_field_eid_t entityId;                                //!< Entity ID of the NvSwitch (physicalId)
+    ixdcgmLinkState_t  linkState[IXDCGM_MAX_LINKS_PER_SWITCH];  //!< Per-NvSwitch link states
+} ixdcgmSwitchLinkStatus_t;
+
+typedef struct
+{
+    unsigned int               version;  //!< Version of this request. Should be dcgmNvLinkStatus_version1
+    unsigned int               numGpus;  //!< Number of entries in gpus[] that are populated
+    ixdcgmLinkGpuLinkStatus_v3 gpus[IXDCGM_MAX_NUM_DEVICES];  //!< Per-GPU NvLink link statuses
+    unsigned int               numNvSwitches;                 //!< Number of entries in nvSwitches[] that are populated
+    ixdcgmSwitchLinkStatus_t   nvSwitches[IXDCGM_MAX_NUM_SWITCHES];  //!< Per-NvSwitch link statuses
+} ixdcgmLinkStatus_v3;
+
+typedef ixdcgmLinkStatus_v3 ixdcgmLinkStatus_t;
+
 #endif // end of __IXDCGM_STRUCTS_H__

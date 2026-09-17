@@ -65,7 +65,7 @@ func main() {
 				}
 
 				fmt.Printf("%5d %.5s %5s %5d %5d %5d %5d\n",
-					gpu, st.Power, st.Temperature, st.Utilization.Gpu, st.Utilization.Mem,
+					gpu, st.Power, st.GpuTemperature, st.Utilization.Gpu, st.Utilization.Mem,
 					st.Clocks.Mem, st.Clocks.Sm)
 			}
 
